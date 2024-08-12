@@ -1,0 +1,23 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "nodemon ./src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roki4/search-engine.git"
+  },
+  "author": "Mark Gavrilov",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/roki4/search-engine/issues"
+  },
+  "homepage": "https://github.com/roki4/search-engine#readme",
+  "description": "",
+  "dependencies": {
+    "express": "^4.19.2",
+    "nodemon": "^3.1.4"
+  }
+}
