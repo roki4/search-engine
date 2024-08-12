@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "concurrently \"npm run serve --prefix src/client\" \"npm run dev --prefix src/server\""
   },
   "repository": {
     "type": "git",
@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/roki4/search-engine/issues"
   },
-  "homepage": "https://github.com/roki4/search-engine#readme"
+  "homepage": "https://github.com/roki4/search-engine#readme",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
 }
