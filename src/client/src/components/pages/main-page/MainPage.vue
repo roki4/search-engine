@@ -3,8 +3,8 @@
     <div class="header">
       <div class="header-content">
         <div class="auth-buttons">
-          <button>Log in</button>
-          <button>Sign in</button>
+          <button @click="goToLogin" class="login">Log in</button>
+          <button @click="goToRegister" class="signup">Sign up</button>
         </div>
       </div>
     </div>
@@ -17,9 +17,21 @@
   </div>
 </template>
 
-<script></script>
+<script>
+export default {
+  name: 'MainPage',
+  methods: {
+    goToLogin() {
+      this.$router.push('/login');
+    },
+    goToRegister() {
+      this.$router.push('/register');
+    },
+  },
+};
+</script>
 
-<style>
+<style scoped>
 .header {
   width: 100%;
   height: 50px;
@@ -53,16 +65,28 @@ button {
   background: black;
   border-radius: 15px;
   border: none;
-  color: rgb(168, 107, 168);
+  color: white;
   opacity: 0.8;
+  transition: 0.4s;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.signup:hover {
+  font-size: 17px;
+  width: 90px;
+  background: rgba(85, 243, 45, 0.568);
+  border-radius: 12px;
+  color: white;
+  opacity: 1;
   transition: 0.4s;
   cursor: pointer;
 }
 
-button:hover {
+.login:hover {
   font-size: 17px;
   width: 90px;
-  background: rgba(128, 58, 128, 0.568);
+  background: rgba(24, 58, 211, 0.568);
   border-radius: 12px;
   color: white;
   opacity: 1;
@@ -80,6 +104,7 @@ button:hover {
 }
 
 .logo-name {
+  font-family: sans-serif;
   font-size: 120px;
   background: linear-gradient(90deg, rgba(9, 70, 121, 1) 19%, rgba(255, 0, 245, 1) 63%);
   -webkit-background-clip: text;

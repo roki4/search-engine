@@ -17,6 +17,7 @@
   "homepage": "https://github.com/roki4/search-engine#readme",
   "description": "",
   "dependencies": {
+    "body-parser": "^1.20.2",
     "express": "^4.19.2",
     "nodemon": "^3.1.4"
   }
