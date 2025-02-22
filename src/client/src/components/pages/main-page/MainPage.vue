@@ -9,7 +9,7 @@
       </div>
     </div>
     <div class="main-content">
-      <div class="logo-name">Mark</div>
+      <div class="logo-name">Quirk</div>
       <div>
         <input type="text" class="search-panel" placeholder="Search..." />
       </div>
