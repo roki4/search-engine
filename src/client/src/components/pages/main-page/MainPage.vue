@@ -106,7 +106,7 @@ button {
 .logo-name {
   font-family: sans-serif;
   font-size: 120px;
-  background: linear-gradient(90deg, rgba(9, 70, 121, 1) 19%, rgba(255, 0, 245, 1) 63%);
+  background: radial-gradient(circle, rgba(63, 94, 251, 1) 0%, rgba(252, 70, 107, 1) 100%);
   -webkit-background-clip: text;
   color: transparent;
   text-fill-color: transparent;
