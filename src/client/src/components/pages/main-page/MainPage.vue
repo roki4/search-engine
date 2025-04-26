@@ -17,7 +17,13 @@
     <div class="main-content">
       <div class="logo-name">Quirk</div>
       <div>
-        <input type="text" class="search-panel" placeholder="Search..." />
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="search-panel"
+          placeholder="Search..."
+          @keyup.enter="performSearch"
+        />
       </div>
     </div>
   </div>
@@ -33,16 +39,36 @@ export default {
     authStore.initializeAuth();
     return { authStore };
   },
+  data() {
+    return {
+      searchQuery: '',
+    };
+  },
   methods: {
     goToLogin() {
-      this.$router.push('/login');
+      console.log('Кнопка Log in нажата, переход на /login');
+      try {
+        this.$router.push('/login');
+      } catch (error) {
+        console.error('Ошибка при переходе на /login:', error);
+      }
     },
     goToRegister() {
+      console.log('Кнопка Sign up нажата, переход на /register');
       this.$router.push('/register');
     },
     async logout() {
+      console.log('Кнопка Log out нажата');
       await this.authStore.logout();
       this.$router.push('/');
+    },
+    performSearch() {
+      if (this.searchQuery.trim()) {
+        this.$router.push({
+          path: '/search',
+          query: { q: this.searchQuery },
+        });
+      }
     },
   },
 };
@@ -71,7 +97,7 @@ export default {
   position: absolute;
   right: 0;
   padding-right: 15px;
-  height: 50px; /* Увеличиваем высоту контейнера для соответствия header */
+  height: 50px;
   align-items: center;
 }
 
@@ -84,7 +110,7 @@ export default {
 button {
   font-size: 15px;
   width: 90px;
-  height: 36px; /* Увеличиваем высоту кнопок */
+  height: 36px;
   background: black;
   border-radius: 15px;
   border: none;
@@ -98,7 +124,7 @@ button {
 .signup:hover {
   font-size: 17px;
   width: 90px;
-  height: 36px; /* Увеличиваем высоту при ховере */
+  height: 36px;
   background: rgba(85, 243, 45, 0.568);
   border-radius: 12px;
   color: white;
@@ -110,7 +136,7 @@ button {
 .login:hover {
   font-size: 17px;
   width: 90px;
-  height: 36px; /* Увеличиваем высоту при ховере */
+  height: 36px;
   background: rgba(24, 58, 211, 0.568);
   border-radius: 12px;
   color: white;
@@ -122,7 +148,7 @@ button {
 .logout {
   font-size: 15px;
   width: 90px;
-  height: 36px; /* Увеличиваем высоту кнопки logout */
+  height: 36px;
   background: black;
   border-radius: 15px;
   border: none;
@@ -136,7 +162,7 @@ button {
 .logout:hover {
   font-size: 17px;
   width: 90px;
-  height: 36px; /* Увеличиваем высоту при ховере */
+  height: 36px;
   background: rgba(255, 65, 65, 0.568);
   border-radius: 12px;
   color: white;
