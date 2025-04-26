@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: routes/auth.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: routes/auth.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @fileoverview Authentication routes for user registration, login, and logout.
+ * @module routes/auth
+ */
+
+const express = require('express');
+const authService = require('../services/authService');
+const validate = require('../middleware/validate');
+const { registerSchema, loginSchema, logoutSchema } = require('../validators/authValidator');
+
+const router = express.Router();
+
+/**
+ * Register a new user.
+ * @name POST/api/register
+ * @function
+ * @param {Object} req - Express request object.
+ * @param {string} req.body.name - User's name.
+ * @param {string} req.body.surname - User's surname.
+ * @param {string} req.body.email - User's email.
+ * @param {string} req.body.password - User's password.
+ * @param {Object} res - Express response object.
+ * @returns {Object} 201 - Success message.
+ * @throws {Object} 400 - If email already exists.
+ * @throws {Object} 500 - Server error.
+ */
+router.post('/register', validate(registerSchema), async (req, res) => {
+  const { name, surname, email, password } = req.body;
+  try {
+    await authService.register({ name, surname, email, password });
+    res.status(201).json({ message: 'User registered successfully' });
+  } catch (error) {
+    console.error('Error during registration:', error);
+    if (error.message === 'EMAIL_EXISTS') {
+      return res.status(400).json({ message: 'Email already exists' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * Log in an existing user.
+ * @name POST/api/login
+ * @function
+ * @param {Object} req - Express request object.
+ * @param {string} req.body.email - User's email.
+ * @param {string} req.body.password - User's password.
+ * @param {Object} res - Express response object.
+ * @returns {Object} 200 - Success message and user data (id, name, email).
+ * @throws {Object} 401 - If credentials are invalid.
+ * @throws {Object} 500 - Server error.
+ */
+router.post('/login', validate(loginSchema), async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const user = await authService.login({ email, password });
+    res.status(200).json({
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error('Error during login:', error);
+    if (error.message === 'INVALID_CREDENTIALS') {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * Log out the current user.
+ * @name POST/api/logout
+ * @function
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ * @returns {Object} 200 - Success message.
+ * @throws {Object} 500 - Server error.
+ */
+router.post('/logout', validate(logoutSchema), async (req, res) => {
+  try {
+    res.status(200).json({ message: 'Logout successful' });
+  } catch (error) {
+    console.error('Error during logout:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+module.exports = router;</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-middleware_validate.html">middleware/validate</a></li><li><a href="module-models_searchHistory.html">models/searchHistory</a></li><li><a href="module-models_user.html">models/user</a></li><li><a href="module-repositories_userRepository.html">repositories/userRepository</a></li><li><a href="module-routes_auth.html">routes/auth</a></li><li><a href="module-routes_profile.html">routes/profile</a></li><li><a href="module-routes_search.html">routes/search</a></li><li><a href="module-services_authService.html">services/authService</a></li><li><a href="module-services_profileService.html">services/profileService</a></li><li><a href="module-validators_authValidator.html">validators/authValidator</a></li><li><a href="module-validators_profileValidator.html">validators/profileValidator</a></li><li><a href="module-validators_searchValidator.html">validators/searchValidator</a></li></ul><h3>Classes</h3><ul><li><a href="module-repositories_userRepository-UserRepository.html">UserRepository</a></li><li><a href="module-services_authService-AuthService.html">AuthService</a></li><li><a href="module-services_profileService-ProfileService.html">ProfileService</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat Apr 26 2025 18:10:13 GMT+0300 (Москва, стандартное время)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
