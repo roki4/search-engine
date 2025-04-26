@@ -5,8 +5,15 @@ module.exports = defineConfig({
   devServer: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000', // URL вашего бэкенда
+        target: 'http://localhost:3000',
         changeOrigin: true,
+      },
+    },
+  },
+  configureWebpack: {
+    resolve: {
+      alias: {
+        '@': require('path').resolve(__dirname, 'src'),
       },
     },
   },
