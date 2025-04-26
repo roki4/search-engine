@@ -13,7 +13,7 @@
 </template>
 
 <script>
-import axios from 'axios';
+import { useAuthStore } from '@/stores/auth';
 
 export default {
   name: 'LoginPage',
@@ -30,12 +30,12 @@ export default {
       this.$router.push('/');
     },
     async loginUser() {
+      const authStore = useAuthStore();
       try {
-        const response = await axios.post('/api/login', {
+        await authStore.login({
           email: this.user.email,
           password: this.user.password,
         });
-        console.log('logresp: \n', response);
         this.$router.push('/');
       } catch (error) {
         console.error('Ошибка при входе в систему:', error);
@@ -46,6 +46,7 @@ export default {
 </script>
 
 <style scoped>
+/* Стили остаются без изменений */
 button {
   font-size: 18px;
   width: 150px;

@@ -3,8 +3,14 @@
     <div class="header">
       <div class="header-content">
         <div class="auth-buttons">
-          <button @click="goToLogin" class="login">Log in</button>
-          <button @click="goToRegister" class="signup">Sign up</button>
+          <template v-if="authStore.isAuthenticated">
+            <span class="user-name">{{ authStore.user.name }}</span>
+            <button @click="logout" class="logout">Log out</button>
+          </template>
+          <template v-else>
+            <button @click="goToLogin" class="login">Log in</button>
+            <button @click="goToRegister" class="signup">Sign up</button>
+          </template>
         </div>
       </div>
     </div>
@@ -18,14 +24,25 @@
 </template>
 
 <script>
+import { useAuthStore } from '@/stores/auth';
+
 export default {
   name: 'MainPage',
+  setup() {
+    const authStore = useAuthStore();
+    authStore.initializeAuth();
+    return { authStore };
+  },
   methods: {
     goToLogin() {
       this.$router.push('/login');
     },
     goToRegister() {
       this.$router.push('/register');
+    },
+    async logout() {
+      await this.authStore.logout();
+      this.$router.push('/');
     },
   },
 };
@@ -37,7 +54,6 @@ export default {
   height: 50px;
   background: #2b2424;
   display: flex;
-
   position: fixed;
 }
 
@@ -45,7 +61,6 @@ export default {
   width: 100%;
   max-width: 1200px;
   display: flex;
-  /* justify-content: space-between; */
   align-items: center;
   padding: 0 20px;
 }
@@ -56,12 +71,20 @@ export default {
   position: absolute;
   right: 0;
   padding-right: 15px;
-  height: 40px;
+  height: 50px; /* Увеличиваем высоту контейнера для соответствия header */
+  align-items: center;
+}
+
+.user-name {
+  color: white;
+  font-size: 16px;
+  margin-right: 10px;
 }
 
 button {
   font-size: 15px;
   width: 90px;
+  height: 36px; /* Увеличиваем высоту кнопок */
   background: black;
   border-radius: 15px;
   border: none;
@@ -75,6 +98,7 @@ button {
 .signup:hover {
   font-size: 17px;
   width: 90px;
+  height: 36px; /* Увеличиваем высоту при ховере */
   background: rgba(85, 243, 45, 0.568);
   border-radius: 12px;
   color: white;
@@ -86,7 +110,34 @@ button {
 .login:hover {
   font-size: 17px;
   width: 90px;
+  height: 36px; /* Увеличиваем высоту при ховере */
   background: rgba(24, 58, 211, 0.568);
+  border-radius: 12px;
+  color: white;
+  opacity: 1;
+  transition: 0.4s;
+  cursor: pointer;
+}
+
+.logout {
+  font-size: 15px;
+  width: 90px;
+  height: 36px; /* Увеличиваем высоту кнопки logout */
+  background: black;
+  border-radius: 15px;
+  border: none;
+  color: white;
+  opacity: 0.8;
+  transition: 0.4s;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.logout:hover {
+  font-size: 17px;
+  width: 90px;
+  height: 36px; /* Увеличиваем высоту при ховере */
+  background: rgba(255, 65, 65, 0.568);
   border-radius: 12px;
   color: white;
   opacity: 1;
