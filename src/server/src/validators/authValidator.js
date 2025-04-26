@@ -1,5 +1,14 @@
+/**
+ * @fileoverview Validation schemas for authentication routes using Joi.
+ * @module validators/authValidator
+ */
+
 const Joi = require('joi');
 
+/**
+ * Schema for user registration validation.
+ * @type {Object}
+ */
 const registerSchema = Joi.object({
   name: Joi.string().min(2).max(50).required().messages({
     'string.min': 'Name must be at least 2 characters long',
@@ -21,6 +30,10 @@ const registerSchema = Joi.object({
   }),
 });
 
+/**
+ * Schema for user login validation.
+ * @type {Object}
+ */
 const loginSchema = Joi.object({
   email: Joi.string().email().required().messages({
     'string.email': 'Invalid email format',
@@ -31,7 +44,11 @@ const loginSchema = Joi.object({
   }),
 });
 
-const logoutSchema = Joi.object({}).unknown(true); // Пустая схема, так как тело не требуется
+/**
+ * Schema for user logout validation (empty as no body required).
+ * @type {Object}
+ */
+const logoutSchema = Joi.object({}).unknown(true);
 
 module.exports = {
   registerSchema,

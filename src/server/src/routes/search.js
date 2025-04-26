@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Search route for performing Google Custom Search and saving queries.
+ * @module routes/search
+ */
+
 const express = require('express');
 const axios = require('axios');
 const profileService = require('../services/profileService');
@@ -6,6 +11,15 @@ const { searchSchema } = require('../validators/searchValidator');
 
 const router = express.Router();
 
+/**
+ * Middleware to allow optional user authentication.
+ * @name isAuthenticated
+ * @function
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ * @param {Function} next - Express next middleware function.
+ * @returns {void}
+ */
 const isAuthenticated = (req, res, next) => {
   if (req.user) {
     next();
@@ -14,6 +28,18 @@ const isAuthenticated = (req, res, next) => {
   }
 };
 
+/**
+ * Perform a search using Google Custom Search API and save query for authenticated users.
+ * @name GET/api/search
+ * @function
+ * @param {Object} req - Express request object.
+ * @param {string} req.query.q - Search query string.
+ * @param {number} [req.query.start=1] - Start index for pagination.
+ * @param {Object} res - Express response object.
+ * @returns {Object} 200 - Search results and total count.
+ * @throws {Object} 400 - If query is missing.
+ * @throws {Object} 500 - Server error.
+ */
 router.get('/search', validate(searchSchema), isAuthenticated, async (req, res) => {
   try {
     const { q, start = 1 } = req.query;

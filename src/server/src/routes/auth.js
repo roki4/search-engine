@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Authentication routes for user registration, login, and logout.
+ * @module routes/auth
+ */
+
 const express = require('express');
 const authService = require('../services/authService');
 const validate = require('../middleware/validate');
@@ -5,6 +10,20 @@ const { registerSchema, loginSchema, logoutSchema } = require('../validators/aut
 
 const router = express.Router();
 
+/**
+ * Register a new user.
+ * @name POST/api/register
+ * @function
+ * @param {Object} req - Express request object.
+ * @param {string} req.body.name - User's name.
+ * @param {string} req.body.surname - User's surname.
+ * @param {string} req.body.email - User's email.
+ * @param {string} req.body.password - User's password.
+ * @param {Object} res - Express response object.
+ * @returns {Object} 201 - Success message.
+ * @throws {Object} 400 - If email already exists.
+ * @throws {Object} 500 - Server error.
+ */
 router.post('/register', validate(registerSchema), async (req, res) => {
   const { name, surname, email, password } = req.body;
   try {
@@ -19,6 +38,18 @@ router.post('/register', validate(registerSchema), async (req, res) => {
   }
 });
 
+/**
+ * Log in an existing user.
+ * @name POST/api/login
+ * @function
+ * @param {Object} req - Express request object.
+ * @param {string} req.body.email - User's email.
+ * @param {string} req.body.password - User's password.
+ * @param {Object} res - Express response object.
+ * @returns {Object} 200 - Success message and user data (id, name, email).
+ * @throws {Object} 401 - If credentials are invalid.
+ * @throws {Object} 500 - Server error.
+ */
 router.post('/login', validate(loginSchema), async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -40,6 +71,15 @@ router.post('/login', validate(loginSchema), async (req, res) => {
   }
 });
 
+/**
+ * Log out the current user.
+ * @name POST/api/logout
+ * @function
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ * @returns {Object} 200 - Success message.
+ * @throws {Object} 500 - Server error.
+ */
 router.post('/logout', validate(logoutSchema), async (req, res) => {
   try {
     res.status(200).json({ message: 'Logout successful' });
