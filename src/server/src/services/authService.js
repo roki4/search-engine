@@ -27,6 +27,21 @@ class AuthService {
 
     return user;
   }
+
+  async changePassword(userId, oldPassword, newPassword) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new Error('USER_NOT_FOUND');
+    }
+
+    const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+    if (!isPasswordValid) {
+      throw new Error('INVALID_PASSWORD');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await userRepository.updatePassword(userId, hashedPassword);
+  }
 }
 
 module.exports = new AuthService();

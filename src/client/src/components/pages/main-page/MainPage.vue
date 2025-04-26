@@ -5,6 +5,7 @@
         <div class="auth-buttons">
           <template v-if="authStore.isAuthenticated">
             <span class="user-name">{{ authStore.user.name }}</span>
+            <button @click="goToProfile" class="profile">Profile</button>
             <button @click="logout" class="logout">Log out</button>
           </template>
           <template v-else>
@@ -16,7 +17,7 @@
     </div>
     <div class="main-content">
       <div class="logo-name">Quirk</div>
-      <div>
+      <div class="search-container">
         <input
           v-model="searchQuery"
           type="text"
@@ -24,6 +25,16 @@
           placeholder="Search..."
           @keyup.enter="performSearch"
         />
+        <button class="search-button" @click="performSearch">
+          <i class="fas fa-search"></i>
+        </button>
+        <button
+          class="mic-button"
+          :class="{ listening: isListening }"
+          @click="startSpeechRecognition"
+        >
+          <i class="fas fa-microphone"></i>
+        </button>
       </div>
     </div>
   </div>
@@ -42,23 +53,20 @@ export default {
   data() {
     return {
       searchQuery: '',
+      isListening: false,
     };
   },
   methods: {
     goToLogin() {
-      console.log('Кнопка Log in нажата, переход на /login');
-      try {
-        this.$router.push('/login');
-      } catch (error) {
-        console.error('Ошибка при переходе на /login:', error);
-      }
+      this.$router.push('/login');
     },
     goToRegister() {
-      console.log('Кнопка Sign up нажата, переход на /register');
       this.$router.push('/register');
     },
+    goToProfile() {
+      this.$router.push('/profile');
+    },
     async logout() {
-      console.log('Кнопка Log out нажата');
       await this.authStore.logout();
       this.$router.push('/');
     },
@@ -68,6 +76,73 @@ export default {
           path: '/search',
           query: { q: this.searchQuery },
         });
+      }
+    },
+    async startSpeechRecognition() {
+      if (this.isListening) return;
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert('Ваш браузер не поддерживает голосовой ввод');
+        return;
+      }
+
+      // Проверяем разрешение на использование микрофона
+      try {
+        const permission = await navigator.permissions.query({ name: 'microphone' });
+        if (permission.state === 'denied') {
+          alert(
+            'Доступ к микрофону заблокирован. Пожалуйста, разрешите доступ в настройках браузера.'
+          );
+          return;
+        }
+      } catch (error) {
+        console.error('Ошибка проверки разрешений микрофона:', error);
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'ru-RU'; // Или 'ru-RU' для русского
+      recognition.interimResults = true; // Включаем промежуточные результаты
+      recognition.continuous = true; // Продолжаем слушать до остановки
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        this.isListening = true;
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        this.searchQuery = transcript;
+        if (event.results[0].isFinal) {
+          this.performSearch();
+          recognition.stop();
+        }
+      };
+
+      recognition.onend = () => {
+        this.isListening = false;
+      };
+
+      recognition.onerror = (event) => {
+        this.isListening = false;
+        if (event.error === 'no-speech') {
+          alert('Speech not detected. Try speaking louder or closer to the microphone.');
+        } else if (event.error === 'audio-capture') {
+          alert('Microphone is not available. Check your microphone connection.');
+        } else if (event.error === 'not-allowed') {
+          alert('Access to the microphone is denied. Allow access in your browser settings.');
+        } else {
+          console.error('Speech recognition error:', event.error);
+          alert(`Voice input error: ${event.error}`);
+        }
+      };
+
+      try {
+        recognition.start();
+      } catch (error) {
+        console.error('Ошибка запуска распознавания:', error);
+        this.isListening = false;
+        alert('Не удалось запустить голосовой ввод. Проверьте настройки микрофона.');
       }
     },
   },
@@ -145,6 +220,18 @@ button {
   cursor: pointer;
 }
 
+.profile:hover {
+  font-size: 17px;
+  width: 90px;
+  height: 36px;
+  background: rgba(128, 0, 128, 0.568);
+  border-radius: 12px;
+  color: white;
+  opacity: 1;
+  transition: 0.4s;
+  cursor: pointer;
+}
+
 .logout {
   font-size: 15px;
   width: 90px;
@@ -189,29 +276,58 @@ button {
   text-fill-color: transparent;
 }
 
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 25px;
+}
+
 .search-panel {
   width: 700px;
   height: 45px;
   border-radius: 15px;
   border: 2px solid gray;
-  margin-top: 25px;
   color: white;
   font-size: 20px;
   outline: none;
   background: transparent;
-  padding: 0 15px 0px 15px;
+  padding: 0 15px;
 }
 
 .search-panel:focus {
-  width: 700px;
-  height: 45px;
-  border-radius: 15px;
   border: 2px solid white;
-  margin-top: 25px;
-  color: white;
-  font-size: 20px;
-  outline: none;
-  background: transparent;
-  padding: 0 15px 0px 15px;
+}
+
+.search-button {
+  width: 45px;
+  height: 45px;
+  background: #333;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-button:hover {
+  background: #007bff;
+}
+
+.mic-button {
+  width: 45px;
+  height: 45px;
+  background: #333;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mic-button:hover {
+  background: #ff4444;
+}
+
+.mic-button.listening {
+  background: #ff4444;
 }
 </style>
