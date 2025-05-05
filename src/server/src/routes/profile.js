@@ -1,5 +1,5 @@
 /**
- * @fileoverview Profile routes for password change, search history, and autocomplete.
+ * @fileoverview Profile routes for password change, search history, autocomplete, and spellcheck.
  * @module routes/profile
  */
 
@@ -170,6 +170,70 @@ router.delete('/search-history', isAuthenticated, async (req, res) => {
   } catch (error) {
     console.error('Error deleting search query:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * Check spelling of a search query using Yandex Speller API.
+ * @name GET/api/spellcheck
+ * @function
+ * @param {Object} req - Express request object.
+ * @param {string} req.query.q - Search query to check.
+ * @param {Object} res - Express response object.
+ * @returns {Object} 200 - Corrected query or original if no corrections.
+ * @throws {Object} 400 - If query is missing.
+ * @throws {Object} 500 - Server error.
+ */
+router.get('/spellcheck', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) {
+      return res.status(400).json({ corrected: q });
+    }
+
+    const response = await axios.get('https://speller.yandex.net/services/spellservice.json/checkText', {
+      params: {
+        text: q,
+        lang: 'ru,en',
+        options: 4, // Ignore capitalization
+      },
+    });
+
+    let corrected = q;
+    if (response.data && response.data.length > 0) {
+      const words = q.split(' ');
+      let wordIndex = 0;
+      let charIndex = 0;
+      let result = '';
+
+      for (let i = 0; i < q.length; i++) {
+        if (wordIndex < response.data.length && charIndex === response.data[wordIndex].pos) {
+          const correction = response.data[wordIndex];
+          if (correction.s && correction.s.length > 0) {
+            result += correction.s[0];
+            charIndex += correction.len;
+            i += correction.len - 1;
+          } else {
+            result += q[i];
+            charIndex++;
+          }
+          wordIndex++;
+        } else {
+          result += q[i];
+          charIndex++;
+          if (q[i] === ' ') {
+            charIndex = 0;
+            wordIndex = response.data.findIndex((c) => c.pos > charIndex) || wordIndex;
+          }
+        }
+      }
+      corrected = result;
+    }
+
+    res.status(200).json({ corrected });
+  } catch (error) {
+    console.error('Error checking spelling:', error);
+    res.status(500).json({ corrected: req.query.q });
   }
 });
 

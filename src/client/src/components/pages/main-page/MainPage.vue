@@ -20,6 +20,7 @@
       <div class="search-container">
         <div class="search-wrapper">
           <input
+            ref="searchInput"
             v-model="searchQuery"
             type="text"
             class="search-panel"
@@ -27,19 +28,22 @@
             @input="fetchSuggestions"
             @keyup.enter="performSearch"
             @blur="clearSuggestions"
+            @keydown="handleKeydown"
           />
           <div v-if="suggestions.length" class="suggestions-dropdown">
             <ul>
               <li
                 v-for="(suggestion, index) in suggestions"
                 :key="index"
+                :class="{ highlighted: index === highlightedIndex }"
                 @mousedown="selectSuggestion(suggestion)"
               >
-                <span>{{ suggestion }}</span>
+                <span v-if="suggestion.isCorrected">Corrected: {{ suggestion.text }}</span>
+                <span v-else>{{ suggestion.text }}</span>
                 <button
                   v-if="isFromHistory(index) && authStore.isAuthenticated"
                   class="delete-button"
-                  @mousedown.stop="deleteSuggestion(suggestion)"
+                  @mousedown.stop="deleteSuggestion(suggestion.text)"
                 >
                   <i class="fas fa-times"></i>
                 </button>
@@ -65,6 +69,7 @@
 <script>
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
+import hotkeys from 'hotkeys-js';
 
 export default {
   name: 'MainPage',
@@ -76,10 +81,31 @@ export default {
   data() {
     return {
       searchQuery: '',
-      suggestions: [],
-      historyCount: 0, // Track number of history suggestions
+      suggestions: [], // Now contains { text, isCorrected } objects
+      historyCount: 0,
       isListening: false,
+      highlightedIndex: -1,
     };
+  },
+  mounted() {
+    // Initialize hotkeys
+    hotkeys('ctrl+/,cmd+/', (event) => {
+      event.preventDefault();
+      this.$refs.searchInput.focus();
+    });
+
+    hotkeys('esc', () => {
+      this.searchQuery = '';
+      this.suggestions = [];
+      this.historyCount = 0;
+      this.highlightedIndex = -1;
+      this.$refs.searchInput.blur();
+    });
+  },
+  beforeUnmount() {
+    // Cleanup hotkeys
+    hotkeys.unbind('ctrl+/,cmd+/');
+    hotkeys.unbind('esc');
   },
   methods: {
     /**
@@ -114,6 +140,8 @@ export default {
     performSearch() {
       if (this.searchQuery.trim()) {
         this.suggestions = [];
+        this.historyCount = 0;
+        this.highlightedIndex = -1;
         this.$router.push({
           path: '/search',
           query: { q: this.searchQuery },
@@ -121,13 +149,14 @@ export default {
       }
     },
     /**
-     * Fetch autocomplete suggestions based on input query.
+     * Fetch autocomplete suggestions and spellcheck.
      * @async
      */
     async fetchSuggestions() {
       if (!this.searchQuery.trim()) {
         this.suggestions = [];
         this.historyCount = 0;
+        this.highlightedIndex = -1;
         return;
       }
 
@@ -135,40 +164,58 @@ export default {
         let suggestions = [];
         this.historyCount = 0;
 
+        // Check spelling
+        let correctedQuery = this.searchQuery;
+        const spellcheckResponse = await axios.get('/api/spellcheck', {
+          params: { q: this.searchQuery },
+        });
+        if (
+          spellcheckResponse.data.corrected &&
+          spellcheckResponse.data.corrected !== this.searchQuery
+        ) {
+          correctedQuery = spellcheckResponse.data.corrected;
+          suggestions.push({ text: correctedQuery, isCorrected: true });
+        }
+
         // Get history suggestions for authenticated users
         if (this.authStore.isAuthenticated) {
           const response = await axios.get('/api/autocomplete', {
             headers: { 'x-user': JSON.stringify(this.authStore.user) },
-            params: { q: this.searchQuery },
+            params: { q: correctedQuery },
           });
-          suggestions = response.data.suggestions || [];
-          this.historyCount = suggestions.length;
+          const historySuggestions = (response.data.suggestions || [])
+            .filter((s) => !suggestions.some((sug) => sug.text === s))
+            .map((text) => ({ text, isCorrected: false }));
+          suggestions = suggestions.concat(historySuggestions);
+          this.historyCount = historySuggestions.length;
         }
 
         // Fill remaining slots with external suggestions
         if (suggestions.length < 5) {
           const response = await axios.get('/api/external-autocomplete', {
-            params: { q: this.searchQuery },
+            params: { q: correctedQuery },
           });
-          const external = (response.data.suggestions || []).filter(
-            (s) => !suggestions.includes(s)
-          );
+          const external = (response.data.suggestions || [])
+            .filter((s) => !suggestions.some((sug) => sug.text === s))
+            .map((text) => ({ text, isCorrected: false }));
           suggestions = suggestions.concat(external).slice(0, 5);
         }
 
         this.suggestions = suggestions;
+        this.highlightedIndex = -1; // Reset highlight
       } catch (error) {
         console.error('Error fetching suggestions:', error);
         this.suggestions = [];
         this.historyCount = 0;
+        this.highlightedIndex = -1;
       }
     },
     /**
      * Select a suggestion and perform search.
-     * @param {string} suggestion - Selected suggestion.
+     * @param {Object} suggestion - Selected suggestion { text, isCorrected }.
      */
     selectSuggestion(suggestion) {
-      this.searchQuery = suggestion;
+      this.searchQuery = suggestion.text;
       this.performSearch();
     },
     /**
@@ -184,8 +231,11 @@ export default {
           headers: { 'x-user': JSON.stringify(this.authStore.user) },
           params: { query: suggestion },
         });
-        this.suggestions = this.suggestions.filter((s) => s !== suggestion);
+        this.suggestions = this.suggestions.filter((s) => s.text !== suggestion);
         this.historyCount = Math.max(0, this.historyCount - 1);
+        if (this.highlightedIndex >= this.suggestions.length) {
+          this.highlightedIndex = this.suggestions.length - 1;
+        }
       } catch (error) {
         console.error('Error deleting suggestion:', error);
       }
@@ -196,7 +246,7 @@ export default {
      * @returns {boolean} True if from history.
      */
     isFromHistory(index) {
-      return index < this.historyCount;
+      return index < this.historyCount && !this.suggestions[index].isCorrected;
     },
     /**
      * Clear suggestions list.
@@ -204,6 +254,33 @@ export default {
     clearSuggestions() {
       this.suggestions = [];
       this.historyCount = 0;
+      this.highlightedIndex = -1;
+    },
+    /**
+     * Handle keydown events for navigation and deletion.
+     * @param {Event} event - Keydown event.
+     */
+    handleKeydown(event) {
+      if (!this.suggestions.length) return;
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.highlightedIndex = Math.min(this.highlightedIndex + 1, this.suggestions.length - 1);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.highlightedIndex = Math.max(this.highlightedIndex - 1, -1);
+      } else if (event.key === 'Enter' && this.highlightedIndex >= 0) {
+        event.preventDefault();
+        this.selectSuggestion(this.suggestions[this.highlightedIndex]);
+      } else if (
+        (event.key === 'Delete' || event.key === 'Backspace') &&
+        this.highlightedIndex >= 0 &&
+        this.isFromHistory(this.highlightedIndex) &&
+        this.authStore.isAuthenticated
+      ) {
+        event.preventDefault();
+        this.deleteSuggestion(this.suggestions[this.highlightedIndex].text);
+      }
     },
     /**
      * Start speech recognition for voice input.
@@ -447,7 +524,8 @@ button {
   transition: background 0.2s;
 }
 
-.suggestions-dropdown li:hover {
+.suggestions-dropdown li:hover,
+.suggestions-dropdown li.highlighted {
   background: #007bff;
 }
 
