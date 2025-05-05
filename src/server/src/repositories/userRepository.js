@@ -79,6 +79,19 @@ class UserRepository {
       order: [['createdAt', 'DESC']],
     });
   }
+
+  /**
+   * Delete a specific search query from user's history.
+   * @async
+   * @param {number} userId - User's ID.
+   * @param {string} query - Search query to delete.
+   * @returns {Promise<number>} Number of deleted rows.
+   */
+  async deleteSearchQuery(userId, query) {
+    return SearchHistory.destroy({
+      where: { userId, query },
+    });
+  }
 }
 
 module.exports = new UserRepository();

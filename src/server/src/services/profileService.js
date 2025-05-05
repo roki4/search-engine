@@ -31,6 +31,17 @@ class ProfileService {
   async getSearchHistory(userId) {
     return userRepository.getSearchHistory(userId);
   }
+
+  /**
+   * Delete a specific search query from user's history.
+   * @async
+   * @param {number} userId - User's ID.
+   * @param {string} query - Search query to delete.
+   * @returns {Promise<void>}
+   */
+  async deleteSearchQuery(userId, query) {
+    await userRepository.deleteSearchQuery(userId, query);
+  }
 }
 
 module.exports = new ProfileService();
