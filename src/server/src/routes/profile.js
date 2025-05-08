@@ -92,20 +92,18 @@ router.get('/autocomplete', isAuthenticated, async (req, res) => {
     const { q } = req.query;
     const history = await profileService.getSearchHistory(req.user.id);
     let suggestions = history.map((item) => item.query);
-    
+
     // Remove duplicates
     suggestions = [...new Set(suggestions)];
-    
+
     // Filter by partial match if q is provided
     if (q) {
-      suggestions = suggestions.filter((query) => 
-        query.toLowerCase().includes(q.toLowerCase())
-      );
+      suggestions = suggestions.filter((query) => query.toLowerCase().includes(q.toLowerCase()));
     }
-    
+
     // Limit to 5 suggestions
     suggestions = suggestions.slice(0, 5);
-    
+
     res.status(200).json({ suggestions });
   } catch (error) {
     console.error('Error fetching autocomplete suggestions:', error);
