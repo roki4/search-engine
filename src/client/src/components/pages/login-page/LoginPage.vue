@@ -1,13 +1,13 @@
 <template>
   <div class="login-page">
-    <div class="login-logo">Login</div>
+    <div class="login-logo">Вход</div>
     <form class="form">
       <input v-model="user.email" type="email" placeholder="Email" class="email" />
-      <input v-model="user.password" type="password" placeholder="Password" class="password" />
+      <input v-model="user.password" type="password" placeholder="Пароль" class="password" />
     </form>
     <div class="buttons">
-      <button @click="loginUser" type="submit" class="login">Log in</button>
-      <button @click="goToMain" type="submit" class="back">Back</button>
+      <button @click="loginUser" type="submit" class="login">Войти</button>
+      <button @click="goToMain" type="submit" class="back">Назад</button>
     </div>
   </div>
 </template>
@@ -46,7 +46,6 @@ export default {
 </script>
 
 <style scoped>
-/* Стили остаются без изменений */
 button {
   font-size: 18px;
   width: 150px;

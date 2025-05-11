@@ -1,15 +1,15 @@
 <template>
   <div class="register-page">
-    <div class="register-logo">Register</div>
+    <div class="register-logo">Регистрация</div>
     <form class="form">
-      <input type="text" v-model="user.name" placeholder="Name" class="name" />
-      <input type="text" v-model="user.surname" placeholder="Surname" class="surname" />
+      <input type="text" v-model="user.name" placeholder="Имя" class="name" />
+      <input type="text" v-model="user.surname" placeholder="Фамилия" class="surname" />
       <input type="email" v-model="user.email" placeholder="Email" class="email" />
-      <input type="password" v-model="user.password" placeholder="Password" class="password" />
+      <input type="password" v-model="user.password" placeholder="Пароль" class="password" />
     </form>
     <div class="buttons">
-      <button type="submit" @click="registerUser" class="signup">Sign up</button>
-      <button @click="goToMain" type="submit" class="back">Back</button>
+      <button type="submit" @click="registerUser" class="signup">Зарегистрироваться</button>
+      <button @click="goToMain" type="submit" class="back">Назад</button>
     </div>
   </div>
 </template>
@@ -101,7 +101,7 @@ button {
 .register-logo {
   font-size: 70px;
   color: white;
-  webkit-background-clip: text;
+  -webkit-background-clip: text;
   text-fill-color: transparent;
 }
 

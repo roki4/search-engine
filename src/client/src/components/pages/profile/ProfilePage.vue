@@ -5,69 +5,69 @@
         <router-link to="/" class="logo-name">Quirk</router-link>
         <div class="auth-buttons">
           <span v-if="authStore.user" class="user-name">{{ authStore.user.name }}</span>
-          <button @click="logout" class="logout">Log out</button>
+          <button @click="logout" class="logout">Выйти</button>
         </div>
       </div>
     </div>
     <div class="profile-container">
-      <h1>Profile</h1>
+      <h1>Профиль</h1>
       <div class="tabs">
         <button :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">
-          User Info
+          Информация о пользователе
         </button>
         <button :class="{ active: activeTab === 'password' }" @click="activeTab = 'password'">
-          Change Password
+          Сменить пароль
         </button>
         <button :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">
-          Search History
+          История поиска
         </button>
       </div>
       <div class="tab-content">
         <div v-if="activeTab === 'info'" class="user-info">
-          <h2>User Information</h2>
+          <h2>Информация о пользователе</h2>
           <div class="info-group">
-            <label>Name:</label>
-            <span>{{ userInfo.name || 'N/A' }}</span>
+            <label>Имя:</label>
+            <span>{{ userInfo.name || 'Не указано' }}</span>
           </div>
           <div class="info-group">
-            <label>Surname:</label>
-            <span>{{ userInfo.surname || 'N/A' }}</span>
+            <label>Фамилия:</label>
+            <span>{{ userInfo.surname || 'Не указано' }}</span>
           </div>
           <div class="info-group">
             <label>Email:</label>
-            <span>{{ userInfo.email || 'N/A' }}</span>
+            <span>{{ userInfo.email || 'Не указано' }}</span>
           </div>
         </div>
         <div v-if="activeTab === 'password'" class="password-form">
-          <h2>Change Password</h2>
+          <h2>Сменить пароль</h2>
           <form @submit.prevent="changePassword">
             <div class="form-group">
-              <label for="old-password">Current Password</label>
+              <label for="old-password">Текущий пароль</label>
               <input
                 v-model="passwordForm.oldPassword"
                 type="password"
                 id="old-password"
-                placeholder="Enter current password"
+                placeholder="Введите текущий пароль"
               />
             </div>
             <div class="form-group">
-              <label for="new-password">New Password</label>
+              <label for="new-password">Новый пароль</label>
               <input
                 v-model="passwordForm.newPassword"
                 type="password"
                 id="new-password"
-                placeholder="Enter new password"
+                placeholder="Введите новый пароль"
               />
             </div>
-            <button type="submit" class="submit-button">Change Password</button>
+            <button type="submit" class="submit-button">Сменить пароль</button>
             <p v-if="passwordError" class="error">{{ passwordError }}</p>
-            <p v-if="passwordSuccess" class="success">{{ passwordSuccess }}</p>
+            <p v-if="passwordSuccess" class="success">Пароль успешно изменён</p>
           </form>
         </div>
         <div v-if="activeTab === 'history'" class="history">
-          <h2>Search History</h2>
+          <h2>История поиска</h2>
           <div v-if="historyError" class="error">{{ historyError }}</div>
-          <div v-else-if="searchHistory.length === 0" class="no-history">No search history</div>
+          <div v-else-if="searchHistory.length === 0" class="no-history">История поиска пуста</div>
           <ul v-else class="history-list">
             <li v-for="(item, index) in searchHistory" :key="index" class="history-item">
               <span>{{ item.query }}</span>
@@ -128,9 +128,9 @@ export default {
       } catch (error) {
         console.error('Error loading user info:', error);
         this.userInfo = {
-          name: this.authStore.user?.name || 'N/A',
-          surname: this.authStore.user?.surname || 'N/A',
-          email: this.authStore.user?.email || 'N/A',
+          name: this.authStore.user?.name || 'Не указано',
+          surname: this.authStore.user?.surname || 'Не указано',
+          email: this.authStore.user?.email || 'Не указано',
         };
       }
     },
@@ -148,12 +148,12 @@ export default {
             headers: { 'x-user': JSON.stringify(this.authStore.user) },
           }
         );
-        this.passwordSuccess = 'Password changed successfully';
+        this.passwordSuccess = 'Пароль успешно изменён';
         this.passwordForm.oldPassword = '';
         this.passwordForm.newPassword = '';
       } catch (error) {
         console.error('Error changing password:', error);
-        this.passwordError = error.response?.data?.message || 'Error changing password';
+        this.passwordError = error.response?.data?.message || 'Ошибка при смене пароля';
       }
     },
     async loadSearchHistory() {
@@ -165,7 +165,7 @@ export default {
         this.searchHistory = response.data.history;
       } catch (error) {
         console.error('Error loading history:', error);
-        this.historyError = error.response?.data?.message || 'Failed to load search history';
+        this.historyError = error.response?.data?.message || 'Не удалось загрузить историю поиска';
       }
     },
     async logout() {
@@ -173,7 +173,7 @@ export default {
       this.$router.push('/');
     },
     formatDate(date) {
-      return new Date(date).toLocaleString();
+      return new Date(date).toLocaleString('ru-RU');
     },
   },
 };
@@ -281,9 +281,9 @@ h1 {
 }
 
 .tabs button {
-  width: 200px;
-  font-size: 16px;
-  padding: 10px 30px;
+  width: 240px;
+  font-size: 14px;
+  padding: 10px 20px;
   background: #333;
   border: none;
   border-radius: 8px;

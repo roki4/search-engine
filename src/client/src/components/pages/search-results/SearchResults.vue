@@ -12,8 +12,9 @@
               v-model="searchQuery"
               type="text"
               class="search-input"
-              placeholder="Search..."
+              placeholder="Поиск..."
               @input="fetchSuggestions"
+              @focus="fetchSuggestions"
               @keyup.enter="performSearch"
               @blur="clearSuggestions"
               @keydown="handleKeydown"
@@ -26,7 +27,7 @@
                   :class="{ highlighted: index === highlightedIndex }"
                   @mousedown="selectSuggestion(suggestion)"
                 >
-                  <span v-if="suggestion.isCorrected">Corrected: {{ suggestion.text }}</span>
+                  <span v-if="suggestion.isCorrected">Исправлено: {{ suggestion.text }}</span>
                   <span v-else>{{ suggestion.text }}</span>
                   <button
                     v-if="isFromHistory(index) && authStore.isAuthenticated"
@@ -53,23 +54,23 @@
         <div class="auth-buttons">
           <template v-if="authStore.isAuthenticated">
             <span class="user-name">{{ authStore.user.name }}</span>
-            <button @click="goToProfile" class="profile">Profile</button>
-            <button @click="logout" class="logout">Log out</button>
+            <button @click="goToProfile" class="profile">Профиль</button>
+            <button @click="logout" class="logout">Выйти</button>
           </template>
           <template v-else>
-            <button @click="goToLogin" class="login">Log in</button>
-            <button @click="goToRegister" class="signup">Sign up</button>
+            <button @click="goToLogin" class="login">Войти</button>
+            <button @click="goToRegister" class="signup">Зарегистрироваться</button>
           </template>
         </div>
       </div>
     </div>
     <div class="results-container">
-      <div v-if="loading" class="loading">Loading...</div>
+      <div v-if="loading" class="loading">Загрузка...</div>
       <div v-else-if="results.length === 0 && !wikipediaResult.title" class="no-results">
-        No results found for "{{ searchQuery }}"
+        Ничего не найдено для "{{ searchQuery }}"
       </div>
       <div v-if="wikipediaResult.title" class="wikipedia-result">
-        <h3>Wikipedia Summary</h3>
+        <h3>Краткая информация из Википедии</h3>
         <a :href="wikipediaResult.url" target="_blank" class="wiki-title">{{
           wikipediaResult.title
         }}</a>
@@ -84,11 +85,11 @@
       </div>
       <div v-if="results.length > 0" class="pagination">
         <button :disabled="currentPage === 1" @click="previousPage" class="pagination-button">
-          Previous
+          Предыдущая
         </button>
-        <span class="page-info">Page {{ currentPage }}</span>
+        <span class="page-info">Страница {{ currentPage }}</span>
         <button :disabled="!hasMoreResults" @click="nextPage" class="pagination-button">
-          Next
+          Следующая
         </button>
       </div>
     </div>
@@ -304,6 +305,10 @@ export default {
         if (this.highlightedIndex >= this.suggestions.length) {
           this.highlightedIndex = this.suggestions.length - 1;
         }
+        // Обновляем предложения без закрытия панели
+        await this.fetchSuggestions();
+        // Сохраняем фокус на инпуте
+        this.$refs.searchInput.focus();
       } catch (error) {
         console.error('Error deleting suggestion:', error);
       }
@@ -366,14 +371,14 @@ export default {
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        alert('Your browser does not support voice input');
+        alert('Ваш браузер не поддерживает голосовой ввод');
         return;
       }
 
       try {
         const permission = await navigator.permissions.query({ name: 'microphone' });
         if (permission.state === 'denied') {
-          alert('Microphone access is blocked. Please allow access in browser settings.');
+          alert('Доступ к микрофону заблокирован. Разрешите доступ в настройках браузера.');
           return;
         }
       } catch (error) {
@@ -406,14 +411,14 @@ export default {
       recognition.onerror = (event) => {
         this.isListening = false;
         if (event.error === 'no-speech') {
-          alert('Speech not detected. Try speaking louder or closer to the microphone.');
+          alert('Речь не распознана. Попробуйте говорить громче или ближе к микрофону.');
         } else if (event.error === 'audio-capture') {
-          alert('Microphone is not available. Check your microphone connection.');
+          alert('Микрофон недоступен. Проверьте подключение микрофона.');
         } else if (event.error === 'not-allowed') {
-          alert('Access to the microphone is denied. Allow access in browser settings.');
+          alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.');
         } else {
           console.error('Speech recognition error:', event.error);
-          alert(`Voice input error: ${event.error}`);
+          alert(`Ошибка голосового ввода: ${event.error}`);
         }
       };
 
@@ -422,7 +427,7 @@ export default {
       } catch (error) {
         console.error('Error starting recognition:', error);
         this.isListening = false;
-        alert('Failed to start voice input. Check microphone settings.');
+        alert('Не удалось запустить голосовой ввод. Проверьте настройки микрофона.');
       }
     },
   },
@@ -526,6 +531,17 @@ export default {
   font-size: 14px;
   cursor: pointer;
   transition: background 0.2s;
+  height: 20px;
+}
+
+.suggestions-dropdown li:first-child {
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+}
+
+.suggestions-dropdown li:last-child {
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
 }
 
 .suggestions-dropdown li:hover,
@@ -539,7 +555,13 @@ export default {
   color: #ff4444;
   font-size: 14px;
   cursor: pointer;
-  padding: 0 10px;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .delete-button:hover {

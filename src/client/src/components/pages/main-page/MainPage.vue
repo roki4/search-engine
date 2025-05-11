@@ -5,12 +5,12 @@
         <div class="auth-buttons">
           <template v-if="authStore.isAuthenticated">
             <span class="user-name">{{ authStore.user.name }}</span>
-            <button @click="goToProfile" class="profile">Profile</button>
-            <button @click="logout" class="logout">Log out</button>
+            <button @click="goToProfile" class="profile">Профиль</button>
+            <button @click="logout" class="logout">Выйти</button>
           </template>
           <template v-else>
-            <button @click="goToLogin" class="login">Log in</button>
-            <button @click="goToRegister" class="signup">Sign up</button>
+            <button @click="goToLogin" class="login">Войти</button>
+            <button @click="goToRegister" class="signup">Зарегистрироваться</button>
           </template>
         </div>
       </div>
@@ -24,8 +24,9 @@
             v-model="searchQuery"
             type="text"
             class="search-panel"
-            placeholder="Search..."
+            placeholder="Поиск..."
             @input="fetchSuggestions"
+            @focus="fetchSuggestions"
             @keyup.enter="performSearch"
             @blur="clearSuggestions"
             @keydown="handleKeydown"
@@ -38,7 +39,7 @@
                 :class="{ highlighted: index === highlightedIndex }"
                 @mousedown="selectSuggestion(suggestion)"
               >
-                <span v-if="suggestion.isCorrected">Corrected: {{ suggestion.text }}</span>
+                <span v-if="suggestion.isCorrected">Исправлено: {{ suggestion.text }}</span>
                 <span v-else>{{ suggestion.text }}</span>
                 <button
                   v-if="isFromHistory(index) && authStore.isAuthenticated"
@@ -81,14 +82,13 @@ export default {
   data() {
     return {
       searchQuery: '',
-      suggestions: [], // Now contains { text, isCorrected } objects
+      suggestions: [],
       historyCount: 0,
       isListening: false,
       highlightedIndex: -1,
     };
   },
   mounted() {
-    // Initialize hotkeys
     hotkeys('ctrl+/,cmd+/', (event) => {
       event.preventDefault();
       this.$refs.searchInput.focus();
@@ -103,40 +103,23 @@ export default {
     });
   },
   beforeUnmount() {
-    // Cleanup hotkeys
     hotkeys.unbind('ctrl+/,cmd+/');
     hotkeys.unbind('esc');
   },
   methods: {
-    /**
-     * Navigate to login page.
-     */
     goToLogin() {
       this.$router.push('/login');
     },
-    /**
-     * Navigate to register page.
-     */
     goToRegister() {
       this.$router.push('/register');
     },
-    /**
-     * Navigate to profile page.
-     */
     goToProfile() {
       this.$router.push('/profile');
     },
-    /**
-     * Log out the user and redirect to home page.
-     * @async
-     */
     async logout() {
       await this.authStore.logout();
       this.$router.push('/');
     },
-    /**
-     * Perform search and navigate to results page.
-     */
     performSearch() {
       if (this.searchQuery.trim()) {
         this.suggestions = [];
@@ -148,10 +131,6 @@ export default {
         });
       }
     },
-    /**
-     * Fetch autocomplete suggestions and spellcheck.
-     * @async
-     */
     async fetchSuggestions() {
       if (!this.searchQuery.trim()) {
         this.suggestions = [];
@@ -164,8 +143,6 @@ export default {
         let suggestions = [];
         this.historyCount = 0;
 
-        // Check spelling
-        let correctedQuery = this.searchQuery;
         const spellcheckResponse = await axios.get('/api/spellcheck', {
           params: { q: this.searchQuery },
         });
@@ -173,15 +150,13 @@ export default {
           spellcheckResponse.data.corrected &&
           spellcheckResponse.data.corrected !== this.searchQuery
         ) {
-          correctedQuery = spellcheckResponse.data.corrected;
-          suggestions.push({ text: correctedQuery, isCorrected: true });
+          suggestions.push({ text: spellcheckResponse.data.corrected, isCorrected: true });
         }
 
-        // Get history suggestions for authenticated users
         if (this.authStore.isAuthenticated) {
           const response = await axios.get('/api/autocomplete', {
             headers: { 'x-user': JSON.stringify(this.authStore.user) },
-            params: { q: correctedQuery },
+            params: { q: this.searchQuery },
           });
           const historySuggestions = (response.data.suggestions || [])
             .filter((s) => !suggestions.some((sug) => sug.text === s))
@@ -190,10 +165,9 @@ export default {
           this.historyCount = historySuggestions.length;
         }
 
-        // Fill remaining slots with external suggestions
         if (suggestions.length < 5) {
           const response = await axios.get('/api/external-autocomplete', {
-            params: { q: correctedQuery },
+            params: { q: this.searchQuery },
           });
           const external = (response.data.suggestions || [])
             .filter((s) => !suggestions.some((sug) => sug.text === s))
@@ -202,7 +176,7 @@ export default {
         }
 
         this.suggestions = suggestions;
-        this.highlightedIndex = -1; // Reset highlight
+        this.highlightedIndex = -1;
       } catch (error) {
         console.error('Error fetching suggestions:', error);
         this.suggestions = [];
@@ -210,19 +184,10 @@ export default {
         this.highlightedIndex = -1;
       }
     },
-    /**
-     * Select a suggestion and perform search.
-     * @param {Object} suggestion - Selected suggestion { text, isCorrected }.
-     */
     selectSuggestion(suggestion) {
       this.searchQuery = suggestion.text;
       this.performSearch();
     },
-    /**
-     * Delete a suggestion from search history.
-     * @async
-     * @param {string} suggestion - Suggestion to delete.
-     */
     async deleteSuggestion(suggestion) {
       if (!this.authStore.isAuthenticated) return;
 
@@ -236,30 +201,22 @@ export default {
         if (this.highlightedIndex >= this.suggestions.length) {
           this.highlightedIndex = this.suggestions.length - 1;
         }
+        // Обновляем предложения без закрытия панели
+        await this.fetchSuggestions();
+        // Сохраняем фокус на инпуте
+        this.$refs.searchInput.focus();
       } catch (error) {
         console.error('Error deleting suggestion:', error);
       }
     },
-    /**
-     * Check if a suggestion is from history.
-     * @param {number} index - Index of suggestion.
-     * @returns {boolean} True if from history.
-     */
     isFromHistory(index) {
       return index < this.historyCount && !this.suggestions[index].isCorrected;
     },
-    /**
-     * Clear suggestions list.
-     */
     clearSuggestions() {
       this.suggestions = [];
       this.historyCount = 0;
       this.highlightedIndex = -1;
     },
-    /**
-     * Handle keydown events for navigation and deletion.
-     * @param {Event} event - Keydown event.
-     */
     handleKeydown(event) {
       if (!this.suggestions.length) return;
 
@@ -282,23 +239,19 @@ export default {
         this.deleteSuggestion(this.suggestions[this.highlightedIndex].text);
       }
     },
-    /**
-     * Start speech recognition for voice input.
-     * @async
-     */
     async startSpeechRecognition() {
       if (this.isListening) return;
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        alert('Your browser does not support voice input');
+        alert('Ваш браузер не поддерживает голосовой ввод');
         return;
       }
 
       try {
         const permission = await navigator.permissions.query({ name: 'microphone' });
         if (permission.state === 'denied') {
-          alert('Microphone access is blocked. Please allow access in browser settings.');
+          alert('Доступ к микрофону заблокирован. Разрешите доступ в настройках браузера.');
           return;
         }
       } catch (error) {
@@ -331,14 +284,14 @@ export default {
       recognition.onerror = (event) => {
         this.isListening = false;
         if (event.error === 'no-speech') {
-          alert('Speech not detected. Try speaking louder or closer to the microphone.');
+          alert('Речь не распознана. Попробуйте говорить громче или ближе к микрофону.');
         } else if (event.error === 'audio-capture') {
-          alert('Microphone is not available. Check your microphone connection.');
+          alert('Микрофон недоступен. Проверьте подключение микрофона.');
         } else if (event.error === 'not-allowed') {
-          alert('Access to the microphone is denied. Allow access in browser settings.');
+          alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.');
         } else {
           console.error('Speech recognition error:', event.error);
-          alert(`Voice input error: ${event.error}`);
+          alert(`Ошибка голосового ввода: ${event.error}`);
         }
       };
 
@@ -347,7 +300,7 @@ export default {
       } catch (error) {
         console.error('Error starting recognition:', error);
         this.isListening = false;
-        alert('Failed to start voice input. Check microphone settings.');
+        alert('Не удалось запустить голосовой ввод. Проверьте настройки микрофона.');
       }
     },
   },
@@ -522,6 +475,17 @@ button {
   font-size: 18px;
   cursor: pointer;
   transition: background 0.2s;
+  height: 20px;
+}
+
+.suggestions-dropdown li:first-child {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+.suggestions-dropdown li:last-child {
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 
 .suggestions-dropdown li:hover,
@@ -535,7 +499,13 @@ button {
   color: #ff4444;
   font-size: 16px;
   cursor: pointer;
-  padding: 0 10px;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .delete-button:hover {
