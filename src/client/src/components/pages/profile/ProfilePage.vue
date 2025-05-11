@@ -12,6 +12,9 @@
     <div class="profile-container">
       <h1>Profile</h1>
       <div class="tabs">
+        <button :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">
+          User Info
+        </button>
         <button :class="{ active: activeTab === 'password' }" @click="activeTab = 'password'">
           Change Password
         </button>
@@ -20,6 +23,21 @@
         </button>
       </div>
       <div class="tab-content">
+        <div v-if="activeTab === 'info'" class="user-info">
+          <h2>User Information</h2>
+          <div class="info-group">
+            <label>Name:</label>
+            <span>{{ userInfo.name || 'N/A' }}</span>
+          </div>
+          <div class="info-group">
+            <label>Surname:</label>
+            <span>{{ userInfo.surname || 'N/A' }}</span>
+          </div>
+          <div class="info-group">
+            <label>Email:</label>
+            <span>{{ userInfo.email || 'N/A' }}</span>
+          </div>
+        </div>
         <div v-if="activeTab === 'password'" class="password-form">
           <h2>Change Password</h2>
           <form @submit.prevent="changePassword">
@@ -75,7 +93,12 @@ export default {
   },
   data() {
     return {
-      activeTab: 'password',
+      activeTab: 'info',
+      userInfo: {
+        name: '',
+        surname: '',
+        email: '',
+      },
       passwordForm: {
         oldPassword: '',
         newPassword: '',
@@ -87,9 +110,30 @@ export default {
     };
   },
   async created() {
+    if (!this.authStore.isAuthenticated) {
+      this.$router.push('/login');
+      return;
+    }
+    await this.loadUserInfo();
     await this.loadSearchHistory();
   },
   methods: {
+    async loadUserInfo() {
+      try {
+        const response = await axios.get('/api/profile', {
+          headers: { 'x-user': JSON.stringify(this.authStore.user) },
+        });
+        this.userInfo = response.data;
+        console.log('Loaded user info:', this.userInfo);
+      } catch (error) {
+        console.error('Error loading user info:', error);
+        this.userInfo = {
+          name: this.authStore.user?.name || 'N/A',
+          surname: this.authStore.user?.surname || 'N/A',
+          email: this.authStore.user?.email || 'N/A',
+        };
+      }
+    },
     async changePassword() {
       this.passwordError = '';
       this.passwordSuccess = '';
@@ -101,9 +145,7 @@ export default {
             newPassword: this.passwordForm.newPassword,
           },
           {
-            headers: {
-              'x-user': JSON.stringify(this.authStore.user),
-            },
+            headers: { 'x-user': JSON.stringify(this.authStore.user) },
           }
         );
         this.passwordSuccess = 'Password changed successfully';
@@ -118,9 +160,7 @@ export default {
       this.historyError = '';
       try {
         const response = await axios.get('/api/search-history', {
-          headers: {
-            'x-user': JSON.stringify(this.authStore.user),
-          },
+          headers: { 'x-user': JSON.stringify(this.authStore.user) },
         });
         this.searchHistory = response.data.history;
       } catch (error) {
@@ -271,10 +311,29 @@ h1 {
   text-align: center;
 }
 
+.user-info h2,
 .password-form h2,
 .history h2 {
   font-size: 20px;
   margin-bottom: 20px;
+}
+
+.info-group {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.info-group label {
+  font-weight: bold;
+  width: 100px;
+  text-align: left;
+}
+
+.info-group span {
+  flex: 1;
+  text-align: left;
 }
 
 .form-group {

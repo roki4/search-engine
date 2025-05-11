@@ -9,10 +9,15 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     async login(credentials) {
-      const response = await axios.post('/api/login', credentials);
-      this.user = response.data.user;
-      this.isAuthenticated = true;
-      localStorage.setItem('user', JSON.stringify(this.user));
+      try {
+        const response = await axios.post('/api/login', credentials);
+        this.user = response.data.user; // Includes id, name, surname, email
+        this.isAuthenticated = true;
+        localStorage.setItem('user', JSON.stringify(this.user));
+      } catch (error) {
+        console.error('Login error:', error);
+        throw error;
+      }
     },
 
     async logout() {
@@ -31,6 +36,8 @@ export const useAuthStore = defineStore('auth', {
       if (storedUser) {
         this.user = JSON.parse(storedUser);
         this.isAuthenticated = true;
+        // Log to verify surname
+        console.log('Initialized user:', this.user);
       }
     },
   },

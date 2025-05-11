@@ -6,13 +6,39 @@
           <router-link to="/" class="logo-name">Quirk</router-link>
         </div>
         <div class="search-bar">
-          <input
-            v-model="searchQuery"
-            type="text"
-            class="search-input"
-            placeholder="Search..."
-            @keyup.enter="performSearch"
-          />
+          <div class="search-wrapper">
+            <input
+              ref="searchInput"
+              v-model="searchQuery"
+              type="text"
+              class="search-input"
+              placeholder="Search..."
+              @input="fetchSuggestions"
+              @keyup.enter="performSearch"
+              @blur="clearSuggestions"
+              @keydown="handleKeydown"
+            />
+            <div v-if="suggestions.length" class="suggestions-dropdown">
+              <ul>
+                <li
+                  v-for="(suggestion, index) in suggestions"
+                  :key="index"
+                  :class="{ highlighted: index === highlightedIndex }"
+                  @mousedown="selectSuggestion(suggestion)"
+                >
+                  <span v-if="suggestion.isCorrected">Corrected: {{ suggestion.text }}</span>
+                  <span v-else>{{ suggestion.text }}</span>
+                  <button
+                    v-if="isFromHistory(index) && authStore.isAuthenticated"
+                    class="delete-button"
+                    @mousedown.stop="deleteSuggestion(suggestion.text)"
+                  >
+                    <i class="fas fa-times"></i>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
           <button class="search-button" @click="performSearch">
             <i class="fas fa-search"></i>
           </button>
@@ -39,10 +65,17 @@
     </div>
     <div class="results-container">
       <div v-if="loading" class="loading">Loading...</div>
-      <div v-else-if="results.length === 0" class="no-results">
+      <div v-else-if="results.length === 0 && !wikipediaResult.title" class="no-results">
         No results found for "{{ searchQuery }}"
       </div>
-      <div v-else class="results-list">
+      <div v-if="wikipediaResult.title" class="wikipedia-result">
+        <h3>Wikipedia Summary</h3>
+        <a :href="wikipediaResult.url" target="_blank" class="wiki-title">{{
+          wikipediaResult.title
+        }}</a>
+        <p class="wiki-extract">{{ wikipediaResult.extract }}</p>
+      </div>
+      <div v-if="results.length" class="results-list">
         <div v-for="(result, index) in results" :key="index" class="result-item">
           <a :href="result.url" target="_blank" class="result-title">{{ result.title }}</a>
           <p class="result-url">{{ result.url }}</p>
@@ -65,6 +98,7 @@
 <script>
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
+import hotkeys from 'hotkeys-js';
 
 export default {
   name: 'SearchResults',
@@ -82,6 +116,10 @@ export default {
       totalResults: 0,
       resultsPerPage: 10,
       isListening: false,
+      suggestions: [],
+      historyCount: 0,
+      highlightedIndex: -1,
+      wikipediaResult: {},
     };
   },
   computed: {
@@ -91,37 +129,213 @@ export default {
   },
   created() {
     this.searchQuery = this.$route.query.q || '';
-    this.currentPage = parseInt(this.$route.query.page, 10) || 1;
+    const page = parseInt(this.$route.query.page, 10);
+    this.currentPage = Number.isInteger(page) && page > 0 ? page : 1;
     if (this.searchQuery) {
-      this.performSearch();
+      this.performSearch(this.currentPage);
     }
+  },
+  mounted() {
+    hotkeys('ctrl+/,cmd+/', (event) => {
+      event.preventDefault();
+      this.$refs.searchInput.focus();
+    });
+
+    hotkeys('esc', () => {
+      this.searchQuery = '';
+      this.suggestions = [];
+      this.historyCount = 0;
+      this.highlightedIndex = -1;
+      this.$refs.searchInput.blur();
+    });
+  },
+  beforeUnmount() {
+    hotkeys.unbind('ctrl+/,cmd+/');
+    hotkeys.unbind('esc');
   },
   methods: {
     async performSearch(page = 1) {
-      if (!this.searchQuery) return;
+      if (!this.searchQuery.trim()) return;
       this.loading = true;
-      this.currentPage = page;
-      const start = (page - 1) * this.resultsPerPage + 1;
+      this.currentPage = Number.isInteger(page) && page > 0 ? page : 1;
+      const start = (this.currentPage - 1) * this.resultsPerPage + 1;
+
+      console.log('Performing search with:', {
+        query: this.searchQuery,
+        page: this.currentPage,
+        start,
+      });
 
       try {
+        // Check spelling
+        let queryToSearch = this.searchQuery;
+        try {
+          const spellcheckResponse = await axios.get('/api/spellcheck', {
+            params: { q: this.searchQuery },
+          });
+          if (
+            spellcheckResponse.data.corrected &&
+            spellcheckResponse.data.corrected !== this.searchQuery
+          ) {
+            queryToSearch = spellcheckResponse.data.corrected;
+          }
+        } catch (error) {
+          console.error('Spellcheck failed:', error);
+        }
+
+        // Fetch Wikipedia summary
+        try {
+          const wikiResponse = await axios.get('/api/wikipedia', {
+            params: { q: queryToSearch },
+          });
+          this.wikipediaResult = wikiResponse.data;
+        } catch (error) {
+          console.error('Wikipedia fetch failed:', error);
+          this.wikipediaResult = {};
+        }
+
+        // Perform search
         const response = await axios.get('/api/search', {
-          params: { q: this.searchQuery, start },
+          params: { q: queryToSearch, start },
           headers: {
-            'x-user': JSON.stringify(this.authStore.user),
+            'x-user': this.authStore.user ? JSON.stringify(this.authStore.user) : '{}',
           },
         });
-        this.results = response.data.results;
-        this.totalResults = response.data.totalResults;
+        this.results = response.data.results || [];
+        this.totalResults = response.data.totalResults || 0;
+
+        // Save search query
+        if (this.authStore.isAuthenticated) {
+          try {
+            await axios.post(
+              '/api/save-search-query',
+              { query: queryToSearch },
+              {
+                headers: {
+                  'x-user': JSON.stringify(this.authStore.user),
+                },
+              }
+            );
+          } catch (error) {
+            console.error('Failed to save search query:', error);
+          }
+        }
+
         this.$router.push({
           path: '/search',
           query: { q: this.searchQuery, page: this.currentPage },
         });
       } catch (error) {
-        console.error('Ошибка при поиске:', error);
+        console.error('Error during search:', error);
         this.results = [];
         this.totalResults = 0;
+        this.wikipediaResult = {};
       } finally {
         this.loading = false;
+      }
+    },
+    async fetchSuggestions() {
+      if (!this.searchQuery.trim()) {
+        this.suggestions = [];
+        this.historyCount = 0;
+        this.highlightedIndex = -1;
+        return;
+      }
+
+      try {
+        let suggestions = [];
+        this.historyCount = 0;
+
+        const spellcheckResponse = await axios.get('/api/spellcheck', {
+          params: { q: this.searchQuery },
+        });
+        if (
+          spellcheckResponse.data.corrected &&
+          spellcheckResponse.data.corrected !== this.searchQuery
+        ) {
+          suggestions.push({ text: spellcheckResponse.data.corrected, isCorrected: true });
+        }
+
+        if (this.authStore.isAuthenticated) {
+          const response = await axios.get('/api/autocomplete', {
+            headers: { 'x-user': JSON.stringify(this.authStore.user) },
+            params: { q: this.searchQuery },
+          });
+          const historySuggestions = (response.data.suggestions || [])
+            .filter((s) => !suggestions.some((sug) => sug.text === s))
+            .map((text) => ({ text, isCorrected: false }));
+          suggestions = suggestions.concat(historySuggestions);
+          this.historyCount = historySuggestions.length;
+        }
+
+        if (suggestions.length < 5) {
+          const response = await axios.get('/api/external-autocomplete', {
+            params: { q: this.searchQuery },
+          });
+          const external = (response.data.suggestions || [])
+            .filter((s) => !suggestions.some((sug) => sug.text === s))
+            .map((text) => ({ text, isCorrected: false }));
+          suggestions = suggestions.concat(external).slice(0, 5);
+        }
+
+        this.suggestions = suggestions;
+        this.highlightedIndex = -1;
+      } catch (error) {
+        console.error('Error fetching suggestions:', error);
+        this.suggestions = [];
+        this.historyCount = 0;
+        this.highlightedIndex = -1;
+      }
+    },
+    selectSuggestion(suggestion) {
+      this.searchQuery = suggestion.text;
+      this.performSearch(1);
+    },
+    async deleteSuggestion(suggestion) {
+      if (!this.authStore.isAuthenticated) return;
+
+      try {
+        await axios.delete('/api/search-history', {
+          headers: { 'x-user': JSON.stringify(this.authStore.user) },
+          params: { query: suggestion },
+        });
+        this.suggestions = this.suggestions.filter((s) => s.text !== suggestion);
+        this.historyCount = Math.max(0, this.historyCount - 1);
+        if (this.highlightedIndex >= this.suggestions.length) {
+          this.highlightedIndex = this.suggestions.length - 1;
+        }
+      } catch (error) {
+        console.error('Error deleting suggestion:', error);
+      }
+    },
+    isFromHistory(index) {
+      return index < this.historyCount && !this.suggestions[index].isCorrected;
+    },
+    clearSuggestions() {
+      this.suggestions = [];
+      this.historyCount = 0;
+      this.highlightedIndex = -1;
+    },
+    handleKeydown(event) {
+      if (!this.suggestions.length) return;
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.highlightedIndex = Math.min(this.highlightedIndex + 1, this.suggestions.length - 1);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.highlightedIndex = Math.max(this.highlightedIndex - 1, -1);
+      } else if (event.key === 'Enter' && this.highlightedIndex >= 0) {
+        event.preventDefault();
+        this.selectSuggestion(this.suggestions[this.highlightedIndex]);
+      } else if (
+        (event.key === 'Delete' || event.key === 'Backspace') &&
+        this.highlightedIndex >= 0 &&
+        this.isFromHistory(this.highlightedIndex) &&
+        this.authStore.isAuthenticated
+      ) {
+        event.preventDefault();
+        this.deleteSuggestion(this.suggestions[this.highlightedIndex].text);
       }
     },
     previousPage() {
@@ -152,27 +366,24 @@ export default {
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        alert('Ваш браузер не поддерживает голосовой ввод');
+        alert('Your browser does not support voice input');
         return;
       }
 
-      // Проверяем разрешение на использование микрофона
       try {
         const permission = await navigator.permissions.query({ name: 'microphone' });
         if (permission.state === 'denied') {
-          alert(
-            'Доступ к микрофону заблокирован. Пожалуйста, разрешите доступ в настройках браузера.'
-          );
+          alert('Microphone access is blocked. Please allow access in browser settings.');
           return;
         }
       } catch (error) {
-        console.error('Ошибка проверки разрешений микрофона:', error);
+        console.error('Error checking microphone permissions:', error);
       }
 
       const recognition = new SpeechRecognition();
-      recognition.lang = 'en-US'; // Или 'ru-RU' для русского
-      recognition.interimResults = true; // Включаем промежуточные результаты
-      recognition.continuous = true; // Продолжаем слушать до остановки
+      recognition.lang = 'ru-RU';
+      recognition.interimResults = true;
+      recognition.continuous = true;
       recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
@@ -183,7 +394,7 @@ export default {
         const transcript = event.results[0][0].transcript;
         this.searchQuery = transcript;
         if (event.results[0].isFinal) {
-          this.performSearch();
+          this.performSearch(1);
           recognition.stop();
         }
       };
@@ -195,23 +406,23 @@ export default {
       recognition.onerror = (event) => {
         this.isListening = false;
         if (event.error === 'no-speech') {
-          alert('Речь не обнаружена. Попробуйте говорить громче или ближе к микрофону.');
+          alert('Speech not detected. Try speaking louder or closer to the microphone.');
         } else if (event.error === 'audio-capture') {
-          alert('Микрофон не доступен. Проверьте подключение микрофона.');
+          alert('Microphone is not available. Check your microphone connection.');
         } else if (event.error === 'not-allowed') {
-          alert('Доступ к микрофону запрещен. Разрешите доступ в настройках браузера.');
+          alert('Access to the microphone is denied. Allow access in browser settings.');
         } else {
           console.error('Speech recognition error:', event.error);
-          alert(`Ошибка голосового ввода: ${event.error}`);
+          alert(`Voice input error: ${event.error}`);
         }
       };
 
       try {
         recognition.start();
       } catch (error) {
-        console.error('Ошибка запуска распознавания:', error);
+        console.error('Error starting recognition:', error);
         this.isListening = false;
-        alert('Не удалось запустить голосовой ввод. Проверьте настройки микрофона.');
+        alert('Failed to start voice input. Check microphone settings.');
       }
     },
   },
@@ -266,8 +477,13 @@ export default {
   gap: 10px;
 }
 
-.search-input {
+.search-wrapper {
+  position: relative;
   width: 500px;
+}
+
+.search-input {
+  width: 100%;
   height: 40px;
   border-radius: 20px;
   border: 1px solid #555;
@@ -281,6 +497,53 @@ export default {
 .search-input:focus {
   border: 1px solid #007bff;
   background: #444;
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  top: 42px;
+  left: 0;
+  width: 100%;
+  background: #2b2424;
+  border: 1px solid #555;
+  border-radius: 20px;
+  z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.suggestions-dropdown ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.suggestions-dropdown li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.suggestions-dropdown li:hover,
+.suggestions-dropdown li.highlighted {
+  background: #007bff;
+}
+
+.delete-button {
+  background: transparent;
+  border: none;
+  color: #ff4444;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.delete-button:hover {
+  color: #ff6666;
 }
 
 .search-button {
@@ -382,20 +645,6 @@ button {
   cursor: pointer;
 }
 
-.logout {
-  font-size: 15px;
-  width: 90px;
-  height: 36px;
-  background: black;
-  border-radius: 15px;
-  border: none;
-  color: white;
-  opacity: 0.8;
-  transition: 0.4s;
-  cursor: pointer;
-  font-weight: bold;
-}
-
 .logout:hover {
   font-size: 17px;
   width: 90px;
@@ -424,6 +673,35 @@ button {
   color: #ffffff;
   font-size: 18px;
   text-align: center;
+}
+
+.wikipedia-result {
+  background: #2a2a2a;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.wikipedia-result h3 {
+  font-size: 20px;
+  color: #ffffff;
+  margin-bottom: 10px;
+}
+
+.wiki-title {
+  font-size: 18px;
+  color: #1e90ff;
+  text-decoration: none;
+}
+
+.wiki-title:hover {
+  text-decoration: underline;
+}
+
+.wiki-extract {
+  font-size: 14px;
+  color: #cccccc;
+  margin-top: 10px;
 }
 
 .results-list {

@@ -1,57 +1,17 @@
-/**
- * @fileoverview Validation schemas for authentication routes using Joi.
- * @module validators/authValidator
- */
-
 const Joi = require('joi');
 
-/**
- * Schema for user registration validation.
- * @type {Object}
- */
 const registerSchema = Joi.object({
-  name: Joi.string().min(2).max(50).required().messages({
-    'string.min': 'Name must be at least 2 characters long',
-    'string.max': 'Name cannot exceed 50 characters',
-    'any.required': 'Name is required',
-  }),
-  surname: Joi.string().min(2).max(50).required().messages({
-    'string.min': 'Surname must be at least 2 characters long',
-    'string.max': 'Surname cannot exceed 50 characters',
-    'any.required': 'Surname is required',
-  }),
-  email: Joi.string().email().required().messages({
-    'string.email': 'Invalid email format',
-    'any.required': 'Email is required',
-  }),
-  password: Joi.string().min(6).required().messages({
-    'string.min': 'Password must be at least 6 characters long',
-    'any.required': 'Password is required',
-  }),
+  name: Joi.string().trim().min(1).required(),
+  surname: Joi.string().trim().min(1).required(),
+  email: Joi.string().email().required(),
+  password: Joi.string().min(6).required(),
 });
 
-/**
- * Schema for user login validation.
- * @type {Object}
- */
 const loginSchema = Joi.object({
-  email: Joi.string().email().required().messages({
-    'string.email': 'Invalid email format',
-    'any.required': 'Email is required',
-  }),
-  password: Joi.string().required().messages({
-    'any.required': 'Password is required',
-  }),
+  email: Joi.string().email().required(),
+  password: Joi.string().required(),
 });
 
-/**
- * Schema for user logout validation (empty as no body required).
- * @type {Object}
- */
-const logoutSchema = Joi.object({}).unknown(true);
+const logoutSchema = Joi.object({});
 
-module.exports = {
-  registerSchema,
-  loginSchema,
-  logoutSchema,
-};
+module.exports = { registerSchema, loginSchema, logoutSchema };

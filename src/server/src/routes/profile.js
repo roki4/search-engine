@@ -42,7 +42,7 @@ const isAuthenticated = (req, res, next) => {
  * @throws {Object} 401 - If user is not authenticated.
  * @throws {Object} 500 - Server error.
  */
-router.post('/change-password', isAuthenticated, validate(changePasswordSchema), async (req, res) => {
+router.post('/change-password', isAuthenticated, /*validate(changePasswordSchema),*/ async (req, res) => {
   const { oldPassword, newPassword } = req.body;
   try {
     await authService.changePassword(req.user.id, oldPassword, newPassword);
@@ -167,6 +167,33 @@ router.delete('/search-history', isAuthenticated, async (req, res) => {
     res.status(200).json({ message: 'Search query deleted successfully' });
   } catch (error) {
     console.error('Error deleting search query:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * Save a search query for authenticated users.
+ * @name POST/api/save-search-query
+ * @function
+ * @param {Object} req - Express request object.
+ * @param {string} req.body.query - Search query to save.
+ * @param {Object} res - Express response object.
+ * @returns {Object} 200 - Success message.
+ * @throws {Object} 400 - If query is missing.
+ * @throws {Object} 401 - If user is not authenticated.
+ * @throws {Object} 500 - Server error.
+ */
+router.post('/save-search-query', isAuthenticated, async (req, res) => {
+  try {
+    const { query } = req.body;
+    if (!query) {
+      return res.status(400).json({ message: 'Query is required' });
+    }
+
+    await profileService.saveSearchQuery(req.user.id, query);
+    res.status(200).json({ message: 'Search query saved successfully' });
+  } catch (error) {
+    console.error('Error saving search query:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
