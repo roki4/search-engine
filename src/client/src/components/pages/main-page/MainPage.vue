@@ -10,9 +10,12 @@
           </template>
           <template v-else>
             <button @click="goToLogin" class="login">Войти</button>
-            <button @click="goToRegister" class="signup">Зарегистрироваться</button>
+            <button @click="goToRegister" class="signup">Регистрация</button>
           </template>
         </div>
+      </div>
+      <div class="theme-toggle">
+        <ThemeToggle />
       </div>
     </div>
     <div class="main-content">
@@ -71,9 +74,11 @@
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
 import hotkeys from 'hotkeys-js';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 
 export default {
   name: 'MainPage',
+  components: { ThemeToggle },
   setup() {
     const authStore = useAuthStore();
     authStore.initializeAuth();
@@ -201,9 +206,7 @@ export default {
         if (this.highlightedIndex >= this.suggestions.length) {
           this.highlightedIndex = this.suggestions.length - 1;
         }
-        // Обновляем предложения без закрытия панели
         await this.fetchSuggestions();
-        // Сохраняем фокус на инпуте
         this.$refs.searchInput.focus();
       } catch (error) {
         console.error('Error deleting suggestion:', error);
@@ -311,9 +314,11 @@ export default {
 .header {
   width: 100%;
   height: 50px;
-  background: #2b2424;
+  background: var(--header-bg);
   display: flex;
   position: fixed;
+  top: 0;
+  justify-content: center;
 }
 
 .header-content {
@@ -322,84 +327,82 @@ export default {
   display: flex;
   align-items: center;
   padding: 0 20px;
+  /* position: relative; */
 }
 
 .auth-buttons {
   display: flex;
   gap: 15px;
   position: absolute;
-  right: 0;
-  padding-right: 15px;
+  right: 20px;
   height: 50px;
   align-items: center;
 }
 
+.theme-toggle {
+  /* position: absolute; */
+  left: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .user-name {
-  color: white;
+  color: var(--text-color);
   font-size: 16px;
   margin-right: 10px;
 }
 
 button {
   font-size: 15px;
-  width: 90px;
   height: 36px;
-  background: black;
+  background: var(--button-bg);
   border-radius: 15px;
   border: none;
-  color: white;
-  opacity: 0.8;
+  color: var(--button-text);
+  opacity: var(--button-opacity);
   transition: 0.4s;
   cursor: pointer;
   font-weight: bold;
+  white-space: nowrap;
+}
+
+button.login,
+button.profile,
+button.logout {
+  width: 90px;
+}
+
+button.signup {
+  width: 140px;
+}
+
+button:hover {
+  font-size: 17px;
+  opacity: var(--button-hover-opacity);
+  transition: 0.4s;
 }
 
 .signup:hover {
-  font-size: 17px;
-  width: 90px;
-  height: 36px;
   background: rgba(85, 243, 45, 0.568);
   border-radius: 12px;
-  color: white;
-  opacity: 1;
-  transition: 0.4s;
-  cursor: pointer;
 }
 
 .login:hover {
-  font-size: 17px;
-  width: 90px;
-  height: 36px;
   background: rgba(24, 58, 211, 0.568);
   border-radius: 12px;
-  color: white;
-  opacity: 1;
-  transition: 0.4s;
-  cursor: pointer;
 }
 
 .profile:hover {
-  font-size: 17px;
-  width: 90px;
-  height: 36px;
   background: rgba(128, 0, 128, 0.568);
   border-radius: 12px;
-  color: white;
-  opacity: 1;
-  transition: 0.4s;
-  cursor: pointer;
 }
 
 .logout:hover {
-  font-size: 17px;
-  width: 90px;
-  height: 36px;
   background: rgba(255, 65, 65, 0.568);
   border-radius: 12px;
-  color: white;
-  opacity: 1;
-  transition: 0.4s;
-  cursor: pointer;
 }
 
 .main-content {
@@ -436,16 +439,16 @@ button {
   width: 100%;
   height: 45px;
   border-radius: 15px;
-  border: 2px solid gray;
-  color: white;
+  border: var(--search-border);
+  color: var(--text-color);
   font-size: 20px;
   outline: none;
-  background: transparent;
+  background: var(--input-bg);
   padding: 0 15px;
 }
 
 .search-panel:focus {
-  border: 2px solid white;
+  border: var(--search-border-focus);
 }
 
 .suggestions-dropdown {
@@ -453,8 +456,8 @@ button {
   top: 47px;
   left: 0;
   width: 100%;
-  background: #2b2424;
-  border: 2px solid gray;
+  background: var(--secondary-bg);
+  border: var(--search-border);
   border-radius: 15px;
   z-index: 1000;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
@@ -471,11 +474,11 @@ button {
   justify-content: space-between;
   align-items: center;
   padding: 10px 15px;
-  color: white;
+  color: var(--text-color);
   font-size: 18px;
   cursor: pointer;
   transition: background 0.2s;
-  height: 20px;
+  height: 25px;
 }
 
 .suggestions-dropdown li:first-child {
@@ -515,7 +518,7 @@ button {
 .search-button {
   width: 45px;
   height: 45px;
-  background: #333;
+  background: var(--accent-bg);
   border-radius: 15px;
   display: flex;
   align-items: center;
@@ -529,7 +532,7 @@ button {
 .mic-button {
   width: 45px;
   height: 45px;
-  background: #333;
+  background: var(--accent-bg);
   border-radius: 15px;
   display: flex;
   align-items: center;

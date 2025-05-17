@@ -46,65 +46,21 @@ export default {
 </script>
 
 <style scoped>
-button {
-  font-size: 18px;
-  width: 150px;
-  height: 45px;
-  background: black;
-  border-radius: 15px;
-  border: none;
-  color: white;
-  opacity: 0.8;
-  transition: 0.4s;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.login:hover {
-  font-size: 20px;
-  width: 150px;
-  background: rgba(24, 58, 211, 0.568);
-  border-radius: 12px;
-  color: white;
-  opacity: 1;
-  transition: 0.4s;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.back:hover {
-  font-size: 21px;
-  width: 150px;
-  background: white;
-  border-radius: 12px;
-  color: black;
-  opacity: 1;
-  transition: 0.4s;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.buttons {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-top: 30px;
-}
-
 .login-page {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 65vh;
+  background: var(--background-color);
+  transition: background 0.3s ease;
 }
 
 .login-logo {
   font-size: 70px;
-  background: white;
-  -webkit-background-clip: text;
-  color: transparent;
-  text-fill-color: transparent;
+  color: var(--text-color);
+  margin-bottom: 30px;
+  transition: color 0.3s ease;
 }
 
 .form {
@@ -123,22 +79,54 @@ input {
   width: 350px;
   border-radius: 15px;
   outline: none;
-  background: transparent;
-  border: 1px solid gray;
-  color: white;
-  padding: 0 15px 0px 15px;
+  background: var(--input-bg);
+  border: var(--input-border);
+  color: var(--text-color);
+  padding: 0 15px;
   font-size: 15px;
+  transition: border 0.3s ease, background 0.3s ease, color 0.3s ease;
 }
 
 input:focus {
-  height: 40px;
-  width: 350px;
+  border: var(--input-border-focus);
+  background: var(--input-bg);
+  color: var(--text-color);
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+button {
+  font-size: 18px;
+  width: 150px;
+  height: 45px;
+  background: var(--button-bg);
   border-radius: 15px;
-  outline: none;
-  background: transparent;
-  border: 1px solid white;
-  color: white;
-  padding: 0 15px 0px 15px;
-  font-size: 15px;
+  border: none;
+  color: var(--button-text);
+  opacity: 0.8;
+  transition: all 0.4s ease;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.login:hover {
+  font-size: 20px;
+  background: #007bff;
+  color: #ffffff;
+  border-radius: 12px;
+  opacity: 1;
+}
+
+.back:hover {
+  font-size: 20px;
+  background: #cccccc;
+  color: #000000;
+  border-radius: 12px;
+  opacity: 1;
 }
 </style>

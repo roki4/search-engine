@@ -1,6 +1,9 @@
 <template>
   <div class="profile-page">
     <div class="header">
+      <div class="theme-toggle">
+        <ThemeToggle />
+      </div>
       <div class="header-content">
         <router-link to="/" class="logo-name">Quirk</router-link>
         <div class="auth-buttons">
@@ -83,9 +86,11 @@
 <script>
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 
 export default {
   name: 'ProfilePage',
+  components: { ThemeToggle },
   setup() {
     const authStore = useAuthStore();
     authStore.initializeAuth();
@@ -184,14 +189,14 @@ export default {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #1e1e1e;
+  background: var(--background-color);
   align-items: center;
 }
 
 .header {
   width: 100%;
   height: 50px;
-  background: #2b2424;
+  background: var(--header-bg);
   display: flex;
   justify-content: center;
   position: fixed;
@@ -203,15 +208,16 @@ export default {
   max-width: 1200px;
   display: flex;
   align-items: center;
-  padding: 0 20px;
-  justify-content: space-between;
+  padding: 0 20px 0 20px;
+  /* position: relative; */
 }
 
 .logo-name {
   font-size: 24px;
-  color: white;
+  color: var(--text-color);
   text-decoration: none;
   font-weight: bold;
+  margin-left: 60px;
 }
 
 .logo-name:hover {
@@ -222,46 +228,50 @@ export default {
   display: flex;
   gap: 15px;
   align-items: center;
+  position: absolute;
+  right: 20px;
 }
 
 .user-name {
-  color: white;
+  color: var(--text-color);
   font-size: 16px;
   margin-right: 10px;
 }
 
-.logout {
+button {
   font-size: 15px;
-  width: 120px;
   height: 36px;
-  background: black;
+  background: var(--button-bg);
   border-radius: 15px;
   border: none;
-  color: white;
-  opacity: 0.8;
+  color: var(--button-text);
+  opacity: var(--button-opacity);
   transition: 0.4s;
   cursor: pointer;
   font-weight: bold;
   white-space: nowrap;
 }
 
-.logout:hover {
+button.logout {
+  width: 90px;
+}
+
+button:hover {
   font-size: 17px;
-  width: 120px;
-  height: 36px;
+  opacity: var(--button-hover-opacity);
+  transition: 0.4s;
+}
+
+.logout:hover {
   background: rgba(255, 65, 65, 0.568);
   border-radius: 12px;
-  color: white;
-  opacity: 1;
-  transition: 0.4s;
-  cursor: pointer;
 }
 
 .profile-container {
   max-width: 800px;
   margin: 80px auto 20px;
   padding: 0 20px;
-  color: white;
+  color: var(--text-color);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -281,13 +291,13 @@ h1 {
 }
 
 .tabs button {
-  width: 240px;
+  width: 239px;
   font-size: 14px;
   padding: 10px 20px;
-  background: #333;
+  background: var(--accent-bg);
   border: none;
   border-radius: 8px;
-  color: white;
+  color: var(--button-text);
   cursor: pointer;
   transition: 0.3s;
   white-space: nowrap;
@@ -302,7 +312,7 @@ h1 {
 }
 
 .tab-content {
-  background: #2a2a2a;
+  background: var(--secondary-bg);
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -316,6 +326,7 @@ h1 {
 .history h2 {
   font-size: 20px;
   margin-bottom: 20px;
+  color: var(--text-color);
 }
 
 .info-group {
@@ -329,11 +340,13 @@ h1 {
   font-weight: bold;
   width: 100px;
   text-align: left;
+  color: var(--text-color);
 }
 
 .info-group span {
   flex: 1;
   text-align: left;
+  color: var(--text-color);
 }
 
 .form-group {
@@ -345,22 +358,23 @@ h1 {
   display: block;
   font-size: 14px;
   margin-bottom: 5px;
+  color: var(--text-color);
 }
 
 .form-group input {
   width: 100%;
   height: 40px;
   border-radius: 8px;
-  border: 1px solid #555;
-  background: #333;
-  color: white;
+  border: var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-color);
   padding: 0 15px;
   font-size: 14px;
   outline: none;
 }
 
 .form-group input:focus {
-  border: 1px solid #007bff;
+  border: var(--input-border-focus);
 }
 
 .submit-button {
@@ -370,7 +384,7 @@ h1 {
   background: #007bff;
   border-radius: 8px;
   border: none;
-  color: white;
+  color: var(--button-text);
   cursor: pointer;
   margin-top: 10px;
   white-space: nowrap;
@@ -394,7 +408,7 @@ h1 {
 
 .no-history {
   font-size: 16px;
-  color: #cccccc;
+  color: #666666;
 }
 
 .history-list {
@@ -407,15 +421,28 @@ h1 {
   display: flex;
   justify-content: space-between;
   padding: 10px;
-  border-bottom: 1px solid #555;
+  border-bottom: 1px solid #999;
 }
 
 .history-item:last-child {
   border-bottom: none;
 }
 
+.history-item span {
+  color: var(--text-color);
+}
+
 .history-item .date {
-  color: #999;
+  color: #666666;
   font-size: 12px;
+}
+.theme-toggle {
+  position: absolute;
+  left: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

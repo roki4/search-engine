@@ -63,6 +63,9 @@
           </template>
         </div>
       </div>
+      <div class="theme-toggle">
+        <ThemeToggle />
+      </div>
     </div>
     <div class="results-container">
       <div v-if="loading" class="loading">Загрузка...</div>
@@ -100,9 +103,11 @@
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
 import hotkeys from 'hotkeys-js';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 
 export default {
   name: 'SearchResults',
+  components: { ThemeToggle },
   setup() {
     const authStore = useAuthStore();
     authStore.initializeAuth();
@@ -121,6 +126,7 @@ export default {
       historyCount: 0,
       highlightedIndex: -1,
       wikipediaResult: {},
+      errorMessage: '',
     };
   },
   computed: {
@@ -158,6 +164,7 @@ export default {
     async performSearch(page = 1) {
       if (!this.searchQuery.trim()) return;
       this.loading = true;
+      this.errorMessage = '';
       this.currentPage = Number.isInteger(page) && page > 0 ? page : 1;
       const start = (this.currentPage - 1) * this.resultsPerPage + 1;
 
@@ -168,7 +175,6 @@ export default {
       });
 
       try {
-        // Check spelling
         let queryToSearch = this.searchQuery;
         try {
           const spellcheckResponse = await axios.get('/api/spellcheck', {
@@ -181,21 +187,19 @@ export default {
             queryToSearch = spellcheckResponse.data.corrected;
           }
         } catch (error) {
-          console.error('Spellcheck failed:', error);
+          console.warn('Spellcheck failed:', error.message);
         }
 
-        // Fetch Wikipedia summary
         try {
           const wikiResponse = await axios.get('/api/wikipedia', {
             params: { q: queryToSearch },
           });
-          this.wikipediaResult = wikiResponse.data;
+          this.wikipediaResult = wikiResponse.data || {};
         } catch (error) {
-          console.error('Wikipedia fetch failed:', error);
+          console.warn('Wikipedia fetch failed:', error.message);
           this.wikipediaResult = {};
         }
 
-        // Perform search
         const response = await axios.get('/api/search', {
           params: { q: queryToSearch, start },
           headers: {
@@ -205,7 +209,6 @@ export default {
         this.results = response.data.results || [];
         this.totalResults = response.data.totalResults || 0;
 
-        // Save search query
         if (this.authStore.isAuthenticated) {
           try {
             await axios.post(
@@ -218,7 +221,7 @@ export default {
               }
             );
           } catch (error) {
-            console.error('Failed to save search query:', error);
+            console.warn('Failed to save search query:', error.message);
           }
         }
 
@@ -228,6 +231,7 @@ export default {
         });
       } catch (error) {
         console.error('Error during search:', error);
+        this.errorMessage = error.response?.data?.message || 'Ошибка при выполнении поиска';
         this.results = [];
         this.totalResults = 0;
         this.wikipediaResult = {};
@@ -305,9 +309,7 @@ export default {
         if (this.highlightedIndex >= this.suggestions.length) {
           this.highlightedIndex = this.suggestions.length - 1;
         }
-        // Обновляем предложения без закрытия панели
         await this.fetchSuggestions();
-        // Сохраняем фокус на инпуте
         this.$refs.searchInput.focus();
       } catch (error) {
         console.error('Error deleting suggestion:', error);
@@ -439,13 +441,13 @@ export default {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #1e1e1e;
+  background: var(--background-color);
 }
 
 .header {
   width: 100%;
   height: 50px;
-  background: #2b2424;
+  background: var(--header-bg);
   display: flex;
   position: fixed;
   top: 0;
@@ -458,6 +460,7 @@ export default {
   align-items: center;
   padding: 0 20px;
   margin: 0 auto;
+  /* position: relative; */
 }
 
 .logo {
@@ -466,7 +469,7 @@ export default {
 
 .logo-name {
   font-size: 24px;
-  color: white;
+  color: var(--text-color);
   text-decoration: none;
   font-weight: bold;
 }
@@ -476,10 +479,12 @@ export default {
 }
 
 .search-bar {
-  flex-grow: 1;
   display: flex;
   align-items: center;
   gap: 10px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .search-wrapper {
@@ -491,17 +496,17 @@ export default {
   width: 100%;
   height: 40px;
   border-radius: 20px;
-  border: 1px solid #555;
-  background: #333;
-  color: white;
+  border: var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-color);
   font-size: 16px;
   padding: 0 15px;
   outline: none;
 }
 
 .search-input:focus {
-  border: 1px solid #007bff;
-  background: #444;
+  border: var(--input-border-focus);
+  background: var(--secondary-bg);
 }
 
 .suggestions-dropdown {
@@ -509,8 +514,8 @@ export default {
   top: 42px;
   left: 0;
   width: 100%;
-  background: #2b2424;
-  border: 1px solid #555;
+  background: var(--secondary-bg);
+  border: var(--input-border);
   border-radius: 20px;
   z-index: 1000;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
@@ -527,7 +532,7 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 10px 15px;
-  color: white;
+  color: var(--text-color);
   font-size: 14px;
   cursor: pointer;
   transition: background 0.2s;
@@ -571,7 +576,7 @@ export default {
 .search-button {
   width: 40px;
   height: 40px;
-  background: #333;
+  background: var(--accent-bg);
   border-radius: 20px;
   border: none;
   display: flex;
@@ -587,7 +592,7 @@ export default {
 .mic-button {
   width: 40px;
   height: 40px;
-  background: #333;
+  background: var(--accent-bg);
   border-radius: 20px;
   border: none;
   display: flex;
@@ -609,74 +614,64 @@ export default {
   gap: 15px;
   height: 50px;
   align-items: center;
+  position: absolute;
+  right: 20px;
 }
 
 .user-name {
-  color: white;
+  color: var(--text-color);
   font-size: 16px;
   margin-right: 10px;
 }
 
 button {
   font-size: 15px;
-  width: 90px;
   height: 36px;
-  background: black;
+  background: var(--button-bg);
   border-radius: 15px;
   border: none;
-  color: white;
-  opacity: 0.8;
+  color: var(--button-text);
+  opacity: var(--button-opacity);
   transition: 0.4s;
   cursor: pointer;
   font-weight: bold;
+  white-space: nowrap;
+}
+
+button.login,
+button.profile,
+button.logout {
+  width: 90px;
+}
+
+button.signup {
+  width: 140px;
+}
+
+button:hover {
+  font-size: 17px;
+  opacity: var(--button-hover-opacity);
+  transition: 0.4s;
 }
 
 .signup:hover {
-  font-size: 17px;
-  width: 90px;
-  height: 36px;
   background: rgba(85, 243, 45, 0.568);
   border-radius: 12px;
-  color: white;
-  opacity: 1;
-  transition: 0.4s;
-  cursor: pointer;
 }
 
 .login:hover {
-  font-size: 17px;
-  width: 90px;
-  height: 36px;
   background: rgba(24, 58, 211, 0.568);
   border-radius: 12px;
-  color: white;
-  opacity: 1;
-  transition: 0.4s;
-  cursor: pointer;
 }
 
 .profile:hover {
-  font-size: 17px;
-  width: 90px;
-  height: 36px;
   background: rgba(128, 0, 128, 0.568);
   border-radius: 12px;
-  color: white;
-  opacity: 1;
-  transition: 0.4s;
-  cursor: pointer;
 }
 
 .logout:hover {
-  font-size: 17px;
-  width: 90px;
-  height: 36px;
   background: rgba(255, 65, 65, 0.568);
   border-radius: 12px;
-  color: white;
-  opacity: 1;
-  transition: 0.4s;
-  cursor: pointer;
 }
 
 .results-container {
@@ -686,19 +681,19 @@ button {
 }
 
 .loading {
-  color: #ffffff;
+  color: var(--text-color);
   font-size: 18px;
   text-align: center;
 }
 
 .no-results {
-  color: #ffffff;
+  color: var(--text-color);
   font-size: 18px;
   text-align: center;
 }
 
 .wikipedia-result {
-  background: #2a2a2a;
+  background: var(--secondary-bg);
   padding: 15px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -706,7 +701,7 @@ button {
 
 .wikipedia-result h3 {
   font-size: 20px;
-  color: #ffffff;
+  color: var(--text-color);
   margin-bottom: 10px;
 }
 
@@ -722,7 +717,7 @@ button {
 
 .wiki-extract {
   font-size: 14px;
-  color: #cccccc;
+  color: var(--text-color);
   margin-top: 10px;
 }
 
@@ -733,7 +728,7 @@ button {
 }
 
 .result-item {
-  background: #2a2a2a;
+  background: var(--secondary-bg);
   padding: 15px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -766,7 +761,7 @@ button {
 
 .result-snippet {
   font-size: 14px;
-  color: #cccccc;
+  color: var(--text-color);
   margin: 5px 0;
   line-height: 1.4;
 }
@@ -783,28 +778,45 @@ button {
   font-size: 14px;
   width: 100px;
   height: 36px;
-  background: #333;
+  background: var(--accent-bg);
   border-radius: 8px;
   border: none;
-  color: white;
-  opacity: 0.9;
+  color: var(--button-text);
+  opacity: var(--button-opacity);
   transition: 0.3s;
   cursor: pointer;
 }
 
 .pagination-button:hover {
   background: #007bff;
-  opacity: 1;
+  opacity: var(--button-hover-opacity);
 }
 
 .pagination-button:disabled {
-  background: #555;
+  background: #999;
   cursor: not-allowed;
   opacity: 0.5;
 }
 
 .page-info {
-  color: white;
+  color: var(--text-color);
   font-size: 14px;
+}
+
+.error {
+  color: #ff4444;
+  font-size: 16px;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.theme-toggle {
+  /* position: absolute; */
+  left: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>
