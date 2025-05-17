@@ -28,8 +28,8 @@
             type="text"
             class="search-panel"
             placeholder="Поиск..."
-            @input="fetchSuggestions"
-            @focus="fetchSuggestions"
+            @input="debouncedFetchSuggestions"
+            @focus="debouncedFetchSuggestions"
             @keyup.enter="performSearch"
             @blur="clearSuggestions"
             @keydown="handleKeydown"
@@ -42,8 +42,10 @@
                 :class="{ highlighted: index === highlightedIndex }"
                 @mousedown="selectSuggestion(suggestion)"
               >
-                <span v-if="suggestion.isCorrected">Исправлено: {{ suggestion.text }}</span>
-                <span v-else>{{ suggestion.text }}</span>
+                <span v-if="suggestion.isCorrected" class="suggestion-text"
+                  >Исправлено: {{ suggestion.text }}</span
+                >
+                <span v-else class="suggestion-text">{{ suggestion.text }}</span>
                 <button
                   v-if="isFromHistory(index) && authStore.isAuthenticated"
                   class="delete-button"
@@ -75,6 +77,7 @@ import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
 import hotkeys from 'hotkeys-js';
 import ThemeToggle from '@/components/ThemeToggle.vue';
+import debounce from 'lodash/debounce';
 
 export default {
   name: 'MainPage',
@@ -93,6 +96,9 @@ export default {
       highlightedIndex: -1,
     };
   },
+  created() {
+    this.debouncedFetchSuggestions = debounce(this.fetchSuggestions, 300);
+  },
   mounted() {
     hotkeys('ctrl+/,cmd+/', (event) => {
       event.preventDefault();
@@ -110,34 +116,11 @@ export default {
   beforeUnmount() {
     hotkeys.unbind('ctrl+/,cmd+/');
     hotkeys.unbind('esc');
+    this.debouncedFetchSuggestions.cancel();
   },
   methods: {
-    goToLogin() {
-      this.$router.push('/login');
-    },
-    goToRegister() {
-      this.$router.push('/register');
-    },
-    goToProfile() {
-      this.$router.push('/profile');
-    },
-    async logout() {
-      await this.authStore.logout();
-      this.$router.push('/');
-    },
-    performSearch() {
-      if (this.searchQuery.trim()) {
-        this.suggestions = [];
-        this.historyCount = 0;
-        this.highlightedIndex = -1;
-        this.$router.push({
-          path: '/search',
-          query: { q: this.searchQuery },
-        });
-      }
-    },
     async fetchSuggestions() {
-      if (!this.searchQuery.trim()) {
+      if (!this.searchQuery.trim() || this.searchQuery.length < 2) {
         this.suggestions = [];
         this.historyCount = 0;
         this.highlightedIndex = -1;
@@ -187,6 +170,30 @@ export default {
         this.suggestions = [];
         this.historyCount = 0;
         this.highlightedIndex = -1;
+      }
+    },
+    goToLogin() {
+      this.$router.push('/login');
+    },
+    goToRegister() {
+      this.$router.push('/register');
+    },
+    goToProfile() {
+      this.$router.push('/profile');
+    },
+    async logout() {
+      await this.authStore.logout();
+      this.$router.push('/');
+    },
+    performSearch() {
+      if (this.searchQuery.trim()) {
+        this.suggestions = [];
+        this.historyCount = 0;
+        this.highlightedIndex = -1;
+        this.$router.push({
+          path: '/search',
+          query: { q: this.searchQuery },
+        });
       }
     },
     selectSuggestion(suggestion) {
@@ -494,6 +501,13 @@ button:hover {
 .suggestions-dropdown li:hover,
 .suggestions-dropdown li.highlighted {
   background: #007bff;
+}
+
+.suggestion-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 40px);
 }
 
 .delete-button {

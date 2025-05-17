@@ -73,7 +73,7 @@
           <div v-else-if="searchHistory.length === 0" class="no-history">История поиска пуста</div>
           <ul v-else class="history-list">
             <li v-for="(item, index) in searchHistory" :key="index" class="history-item">
-              <span>{{ item.query }}</span>
+              <span class="query-text">{{ item.query }}</span>
               <span class="date">{{ formatDate(item.createdAt) }}</span>
             </li>
           </ul>
@@ -432,10 +432,18 @@ h1 {
   color: var(--text-color);
 }
 
+.query-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 160px);
+}
+
 .history-item .date {
   color: #666666;
   font-size: 12px;
 }
+
 .theme-toggle {
   position: absolute;
   left: 20px;

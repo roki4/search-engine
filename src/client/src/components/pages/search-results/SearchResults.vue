@@ -13,10 +13,10 @@
               type="text"
               class="search-input"
               placeholder="Поиск..."
-              @input="fetchSuggestions"
-              @focus="fetchSuggestions"
+              @input="debouncedFetchSuggestions"
+              @focus="debouncedFetchSuggestions"
               @keyup.enter="performSearch"
-              @blur="clearSuggestions"
+              @blur="handleBlur"
               @keydown="handleKeydown"
             />
             <div v-if="suggestions.length" class="suggestions-dropdown">
@@ -27,8 +27,10 @@
                   :class="{ highlighted: index === highlightedIndex }"
                   @mousedown="selectSuggestion(suggestion)"
                 >
-                  <span v-if="suggestion.isCorrected">Исправлено: {{ suggestion.text }}</span>
-                  <span v-else>{{ suggestion.text }}</span>
+                  <span v-if="suggestion.isCorrected" class="suggestion-text"
+                    >Исправлено: {{ suggestion.text }}</span
+                  >
+                  <span v-else class="suggestion-text">{{ suggestion.text }}</span>
                   <button
                     v-if="isFromHistory(index) && authStore.isAuthenticated"
                     class="delete-button"
@@ -104,6 +106,7 @@ import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
 import hotkeys from 'hotkeys-js';
 import ThemeToggle from '@/components/ThemeToggle.vue';
+import debounce from 'lodash/debounce';
 
 export default {
   name: 'SearchResults',
@@ -138,6 +141,7 @@ export default {
     this.searchQuery = this.$route.query.q || '';
     const page = parseInt(this.$route.query.page, 10);
     this.currentPage = Number.isInteger(page) && page > 0 ? page : 1;
+    this.debouncedFetchSuggestions = debounce(this.fetchSuggestions, 300);
     if (this.searchQuery) {
       this.performSearch(this.currentPage);
     }
@@ -150,15 +154,14 @@ export default {
 
     hotkeys('esc', () => {
       this.searchQuery = '';
-      this.suggestions = [];
-      this.historyCount = 0;
-      this.highlightedIndex = -1;
+      this.clearSuggestions();
       this.$refs.searchInput.blur();
     });
   },
   beforeUnmount() {
     hotkeys.unbind('ctrl+/,cmd+/');
     hotkeys.unbind('esc');
+    this.debouncedFetchSuggestions.cancel();
   },
   methods: {
     async performSearch(page = 1) {
@@ -167,12 +170,6 @@ export default {
       this.errorMessage = '';
       this.currentPage = Number.isInteger(page) && page > 0 ? page : 1;
       const start = (this.currentPage - 1) * this.resultsPerPage + 1;
-
-      console.log('Performing search with:', {
-        query: this.searchQuery,
-        page: this.currentPage,
-        start,
-      });
 
       try {
         let queryToSearch = this.searchQuery;
@@ -240,7 +237,7 @@ export default {
       }
     },
     async fetchSuggestions() {
-      if (!this.searchQuery.trim()) {
+      if (!this.searchQuery.trim() || this.searchQuery.length < 2) {
         this.suggestions = [];
         this.historyCount = 0;
         this.highlightedIndex = -1;
@@ -294,6 +291,7 @@ export default {
     },
     selectSuggestion(suggestion) {
       this.searchQuery = suggestion.text;
+      this.clearSuggestions();
       this.performSearch(1);
     },
     async deleteSuggestion(suggestion) {
@@ -319,9 +317,16 @@ export default {
       return index < this.historyCount && !this.suggestions[index].isCorrected;
     },
     clearSuggestions() {
+      this.debouncedFetchSuggestions.cancel();
       this.suggestions = [];
       this.historyCount = 0;
       this.highlightedIndex = -1;
+    },
+    handleBlur() {
+      // Задержка для обработки кликов по подсказкам перед очисткой
+      setTimeout(() => {
+        this.clearSuggestions();
+      }, 100);
     },
     handleKeydown(event) {
       if (!this.suggestions.length) return;
@@ -554,6 +559,13 @@ export default {
   background: #007bff;
 }
 
+.suggestion-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 40px);
+}
+
 .delete-button {
   background: transparent;
   border: none;
@@ -719,6 +731,11 @@ button:hover {
   font-size: 14px;
   color: var(--text-color);
   margin-top: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .results-list {
@@ -755,8 +772,10 @@ button:hover {
   font-size: 14px;
   color: #00cc00;
   margin: 5px 0;
-  word-break: break-all;
   max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .result-snippet {
@@ -764,6 +783,9 @@ button:hover {
   color: var(--text-color);
   margin: 5px 0;
   line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pagination {
