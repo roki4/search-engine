@@ -61,7 +61,7 @@
           </template>
           <template v-else>
             <button @click="goToLogin" class="login">Войти</button>
-            <button @click="goToRegister" class="signup">Зарегистрироваться</button>
+            <button @click="goToRegister" class="signup">Регистрация</button>
           </template>
         </div>
       </div>
@@ -71,8 +71,20 @@
     </div>
     <div class="results-container">
       <div v-if="loading" class="loading">Загрузка...</div>
-      <div v-else-if="results.length === 0 && !wikipediaResult.title" class="no-results">
+      <div
+        v-else-if="results.length === 0 && !wikipediaResult.title && !aiResult.text"
+        class="no-results"
+      >
         Ничего не найдено для "{{ searchQuery }}"
+      </div>
+      <div class="ai-result">
+        <h3>Ответ от нейросети</h3>
+        <div v-if="aiLoading" class="ai-loading">
+          <span class="spinner"></span>
+          Нейросеть думает...
+        </div>
+        <p v-else-if="aiResult.text" class="ai-response">{{ aiResult.text }}</p>
+        <p v-else class="ai-no-response">Ответ от нейросети отсутствует</p>
       </div>
       <div v-if="wikipediaResult.title" class="wikipedia-result">
         <h3>Краткая информация из Википедии</h3>
@@ -85,7 +97,7 @@
         <div v-for="(result, index) in results" :key="index" class="result-item">
           <a :href="result.url" target="_blank" class="result-title">{{ result.title }}</a>
           <p class="result-url">{{ result.url }}</p>
-          <p class="result-snippet">{{ result.snippet }}</p>
+          <p class="продолжить отсюда result-snippet">{{ result.snippet }}</p>
         </div>
       </div>
       <div v-if="results.length > 0" class="pagination">
@@ -121,6 +133,7 @@ export default {
       searchQuery: '',
       results: [],
       loading: false,
+      aiLoading: false, // Новое состояние для загрузки нейросети
       currentPage: 1,
       totalResults: 0,
       resultsPerPage: 10,
@@ -129,6 +142,7 @@ export default {
       historyCount: 0,
       highlightedIndex: -1,
       wikipediaResult: {},
+      aiResult: {},
       errorMessage: '',
     };
   },
@@ -167,6 +181,7 @@ export default {
     async performSearch(page = 1) {
       if (!this.searchQuery.trim()) return;
       this.loading = true;
+      this.aiLoading = true; // Включаем загрузку для нейросети
       this.errorMessage = '';
       this.currentPage = Number.isInteger(page) && page > 0 ? page : 1;
       const start = (this.currentPage - 1) * this.resultsPerPage + 1;
@@ -185,6 +200,18 @@ export default {
           }
         } catch (error) {
           console.warn('Spellcheck failed:', error.message);
+        }
+
+        try {
+          const aiResponse = await axios.get('/api/ai', {
+            params: { q: queryToSearch },
+          });
+          this.aiResult = aiResponse.data.text ? { text: aiResponse.data.text } : {};
+        } catch (error) {
+          console.warn('AI fetch failed:', error.message);
+          this.aiResult = {};
+        } finally {
+          this.aiLoading = false; // Выключаем загрузку для нейросети
         }
 
         try {
@@ -232,6 +259,8 @@ export default {
         this.results = [];
         this.totalResults = 0;
         this.wikipediaResult = {};
+        this.aiResult = {};
+        this.aiLoading = false; // Выключаем загрузку в случае общей ошибки
       } finally {
         this.loading = false;
       }
@@ -323,7 +352,6 @@ export default {
       this.highlightedIndex = -1;
     },
     handleBlur() {
-      // Задержка для обработки кликов по подсказкам перед очисткой
       setTimeout(() => {
         this.clearSuggestions();
       }, 100);
@@ -465,7 +493,6 @@ export default {
   align-items: center;
   padding: 0 20px;
   margin: 0 auto;
-  /* position: relative; */
 }
 
 .logo {
@@ -704,6 +731,63 @@ button:hover {
   text-align: center;
 }
 
+.ai-result {
+  background: var(--secondary-bg);
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.ai-result h3 {
+  font-size: 20px;
+  color: var(--text-color);
+  margin-bottom: 10px;
+}
+
+.ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--text-color);
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.ai-response {
+  font-size: 14px;
+  color: var(--text-color);
+  margin-top: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-no-response {
+  font-size: 14px;
+  color: var(--text-color);
+  margin-top: 10px;
+  opacity: 0.7;
+}
+
 .wikipedia-result {
   background: var(--secondary-bg);
   padding: 15px;
@@ -833,7 +917,6 @@ button:hover {
 }
 
 .theme-toggle {
-  /* position: absolute; */
   left: 20px;
   width: 32px;
   height: 32px;
