@@ -226,33 +226,18 @@ router.get('/spellcheck', async (req, res) => {
 
     let corrected = q;
     if (response.data && response.data.length > 0) {
-      const words = q.split(' ');
-      let wordIndex = 0;
-      let charIndex = 0;
-      let result = '';
-
-      for (let i = 0; i < q.length; i++) {
-        if (wordIndex < response.data.length && charIndex === response.data[wordIndex].pos) {
-          const correction = response.data[wordIndex];
-          if (correction.s && correction.s.length > 0) {
-            result += correction.s[0];
-            charIndex += correction.len;
-            i += correction.len - 1;
-          } else {
-            result += q[i];
-            charIndex++;
-          }
-          wordIndex++;
-        } else {
-          result += q[i];
-          charIndex++;
-          if (q[i] === ' ') {
-            charIndex = 0;
-            wordIndex = response.data.findIndex((c) => c.pos > charIndex) || wordIndex;
-          }
+      // Sort corrections by position in descending order to avoid index shifting
+      const corrections = response.data.sort((a, b) => b.pos - a.pos);
+      corrected = q;
+      for (const correction of corrections) {
+        if (correction.s && correction.s.length > 0) {
+          // Replace the incorrect word with the first suggested correction
+          corrected =
+            corrected.slice(0, correction.pos) +
+            correction.s[0] +
+            corrected.slice(correction.pos + correction.len);
         }
       }
-      corrected = result;
     }
 
     res.status(200).json({ corrected });
