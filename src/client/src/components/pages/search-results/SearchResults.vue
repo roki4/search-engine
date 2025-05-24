@@ -879,7 +879,7 @@ button:hover {
 }
 
 .search-type-selector select {
-  width: 200px;
+  width: 210px;
   height: 40px;
   border-radius: 8px;
   border: var(--input-border);

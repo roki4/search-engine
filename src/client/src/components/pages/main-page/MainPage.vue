@@ -462,7 +462,7 @@ button:hover {
 }
 
 .search-type-selector {
-  width: 200px;
+  width: 225px;
   height: 45px;
   border-radius: 15px;
   border: var(--search-border);

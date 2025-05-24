@@ -18,7 +18,8 @@
     "pinia": "^3.0.2",
     "typo-js": "^1.2.5",
     "vue": "^3.2.13",
-    "vue-router": "^4.4.3"
+    "vue-router": "^4.4.3",
+    "joi": "^17.13.3"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
