@@ -57,6 +57,10 @@
             </ul>
           </div>
         </div>
+        <select v-model="searchType" class="search-type-selector">
+          <option value="web">Обычный поиск</option>
+          <option value="documents">Поиск по документам</option>
+        </select>
         <button class="search-button" @click="performSearch">
           <i class="fas fa-search"></i>
         </button>
@@ -90,6 +94,7 @@ export default {
   data() {
     return {
       searchQuery: '',
+      searchType: 'web', // По умолчанию обычный поиск
       suggestions: [],
       historyCount: 0,
       isListening: false,
@@ -192,7 +197,7 @@ export default {
         this.highlightedIndex = -1;
         this.$router.push({
           path: '/search',
-          query: { q: this.searchQuery },
+          query: { q: this.searchQuery, type: this.searchType },
         });
       }
     },
@@ -334,7 +339,6 @@ export default {
   display: flex;
   align-items: center;
   padding: 0 20px;
-  /* position: relative; */
 }
 
 .auth-buttons {
@@ -347,7 +351,6 @@ export default {
 }
 
 .theme-toggle {
-  /* position: absolute; */
   left: 20px;
   width: 32px;
   height: 32px;
@@ -456,6 +459,36 @@ button:hover {
 
 .search-panel:focus {
   border: var(--search-border-focus);
+}
+
+.search-type-selector {
+  width: 200px;
+  height: 45px;
+  border-radius: 15px;
+  border: var(--search-border);
+  background: var(--input-bg);
+  color: var(--text-color);
+  font-size: 18px;
+  padding: 0 10px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%23ffffff" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+[data-theme='light'] .search-type-selector {
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%23333333" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+}
+
+.search-type-selector:focus {
+  border: var(--search-border-focus);
+}
+
+.search-type-selector option {
+  background: var(--secondary-bg);
+  color: var(--text-color);
 }
 
 .suggestions-dropdown {

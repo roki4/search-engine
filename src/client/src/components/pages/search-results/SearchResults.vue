@@ -70,46 +70,85 @@
       </div>
     </div>
     <div class="results-container">
+      <div class="search-type-selector">
+        <select v-model="searchType" @change="handleSearchTypeChange">
+          <option value="web">Обычный поиск</option>
+          <option value="documents">Поиск по документам</option>
+        </select>
+      </div>
       <div
-        v-if="results.length === 0 && !wikipediaResult.title && !aiResult.text && !searchPerformed"
+        v-if="
+          results.length === 0 &&
+          !wikipediaResult.title &&
+          !aiResult.text &&
+          documents.length === 0 &&
+          !searchPerformed
+        "
         class="no-results"
       >
         Ничего не найдено для "{{ searchQuery }}"
       </div>
-      <div class="ai-result">
-        <h3>Ответ от нейросети</h3>
-        <div v-if="aiLoading" class="ai-loading">
-          <span class="spinner"></span>
-          Нейросеть думает...
+      <template v-if="searchType === 'web'">
+        <div class="ai-result">
+          <h3>Ответ от нейросети</h3>
+          <div v-if="aiLoading" class="ai-loading">
+            <span class="spinner"></span>
+            Нейросеть думает...
+          </div>
+          <div v-else-if="aiResult.text" class="ai-response" v-html="formattedAiResponse"></div>
+          <p v-else class="ai-no-response">Ответ от нейросети отсутствует</p>
         </div>
-        <div v-else-if="aiResult.text" class="ai-response" v-html="formattedAiResponse"></div>
-        <p v-else class="ai-no-response">Ответ от нейросети отсутствует</p>
-      </div>
-      <div v-if="wikiLoading" class="loading">Загрузка Википедии...</div>
-      <div v-else-if="wikipediaResult.title" class="wikipedia-result">
-        <h3>Краткая информация из Википедии</h3>
-        <a :href="wikipediaResult.url" target="_blank" class="wiki-title">{{
-          wikipediaResult.title
-        }}</a>
-        <p class="wiki-extract">{{ wikipediaResult.extract }}</p>
-      </div>
-      <div v-if="webLoading" class="loading">Загрузка результатов...</div>
-      <div v-else-if="results.length" class="results-list">
-        <div v-for="(result, index) in results" :key="index" class="result-item">
-          <a :href="result.url" target="_blank" class="result-title">{{ result.title }}</a>
-          <p class="result-url">{{ result.url }}</p>
-          <p class="result-snippet">{{ result.snippet }}</p>
+        <div v-if="wikiLoading" class="loading">Загрузка Википедии...</div>
+        <div v-else-if="wikipediaResult.title" class="wikipedia-result">
+          <h3>Краткая информация из Википедии</h3>
+          <a :href="wikipediaResult.url" target="_blank" class="wiki-title">{{
+            wikipediaResult.title
+          }}</a>
+          <p class="wiki-extract">{{ wikipediaResult.extract }}</p>
         </div>
-      </div>
-      <div v-if="results.length > 0" class="pagination">
-        <button :disabled="currentPage === 1" @click="previousPage" class="pagination-button">
-          Предыдущая
-        </button>
-        <span class="page-info">Страница {{ currentPage }}</span>
-        <button :disabled="!hasMoreResults" @click="nextPage" class="pagination-button">
-          Следующая
-        </button>
-      </div>
+        <div v-if="webLoading" class="loading">Загрузка веб-результатов...</div>
+        <div v-else-if="results.length" class="results-list">
+          <div v-for="(result, index) in results" :key="index" class="result-item">
+            <a :href="result.url" target="_blank" class="result-title">{{ result.title }}</a>
+            <p class="result-url">{{ result.url }}</p>
+            <p class="result-snippet">{{ result.snippet }}</p>
+          </div>
+        </div>
+        <div v-if="results.length > 0" class="pagination">
+          <button :disabled="currentPage === 1" @click="previousPage" class="pagination-button">
+            Предыдущая
+          </button>
+          <span class="page-info">Страница {{ currentPage }}</span>
+          <button :disabled="!hasMoreResults" @click="nextPage" class="pagination-button">
+            Следующая
+          </button>
+        </div>
+      </template>
+      <template v-if="searchType === 'documents'">
+        <div v-if="docLoading" class="loading">Загрузка документов...</div>
+        <div v-else-if="documents.length" class="documents-result">
+          <h3>Документы</h3>
+          <div v-for="(doc, index) in documents" :key="index" class="document-item">
+            <a :href="doc.url" target="_blank" class="document-title">{{ doc.title }}</a>
+            <p class="document-url">{{ doc.url }}</p>
+            <p class="document-snippet">{{ doc.snippet }}</p>
+            <p class="document-type">Тип: {{ doc.fileType }}</p>
+          </div>
+        </div>
+        <div v-if="documents.length > 0" class="pagination">
+          <button
+            :disabled="docCurrentPage === 1"
+            @click="previousDocPage"
+            class="pagination-button"
+          >
+            Предыдущая
+          </button>
+          <span class="page-info">Страница {{ docCurrentPage }}</span>
+          <button :disabled="!hasMoreDocResults" @click="nextDocPage" class="pagination-button">
+            Следующая
+          </button>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -137,9 +176,13 @@ export default {
       webLoading: false,
       wikiLoading: false,
       aiLoading: false,
+      docLoading: false,
       currentPage: 1,
       totalResults: 0,
       resultsPerPage: 10,
+      docCurrentPage: 1,
+      docTotalResults: 0,
+      documents: [],
       isListening: false,
       suggestions: [],
       historyCount: 0,
@@ -148,11 +191,15 @@ export default {
       aiResult: {},
       errorMessage: '',
       searchPerformed: false,
+      searchType: 'web', // По умолчанию обычный поиск
     };
   },
   computed: {
     hasMoreResults() {
       return this.currentPage * this.resultsPerPage < this.totalResults;
+    },
+    hasMoreDocResults() {
+      return this.docCurrentPage * this.resultsPerPage < this.docTotalResults;
     },
     formattedAiResponse() {
       return this.aiResult.text ? marked.parse(this.aiResult.text) : '';
@@ -162,9 +209,12 @@ export default {
     this.searchQuery = this.$route.query.q || '';
     const page = parseInt(this.$route.query.page, 10);
     this.currentPage = Number.isInteger(page) && page > 0 ? page : 1;
+    const docPage = parseInt(this.$route.query.docPage, 10);
+    this.docCurrentPage = Number.isInteger(docPage) && docPage > 0 ? docPage : 1;
+    this.searchType = this.$route.query.type === 'documents' ? 'documents' : 'web';
     this.debouncedFetchSuggestions = debounce(this.fetchSuggestions, 300);
     if (this.searchQuery) {
-      this.performSearch(this.currentPage);
+      this.performSearch(this.currentPage, this.docCurrentPage);
     }
   },
   mounted() {
@@ -185,14 +235,17 @@ export default {
     this.debouncedFetchSuggestions.cancel();
   },
   methods: {
-    async performSearch(page = 1) {
+    async performSearch(page = 1, docPage = 1) {
       if (!this.searchQuery.trim()) return;
       this.webLoading = true;
       this.wikiLoading = true;
       this.aiLoading = true;
+      this.docLoading = true;
       this.errorMessage = '';
       this.currentPage = Number.isInteger(page) && page > 0 ? page : 1;
+      this.docCurrentPage = Number.isInteger(docPage) && docPage > 0 ? docPage : 1;
       const start = (this.currentPage - 1) * this.resultsPerPage + 1;
+      const docStart = (this.docCurrentPage - 1) * this.resultsPerPage + 1;
       this.searchPerformed = true;
 
       // Шаг 1: Проверка орфографии
@@ -214,7 +267,7 @@ export default {
       // Шаг 2: Запуск запроса к нейросети (независимо)
       this.fetchAIResult(queryToSearch);
 
-      // Шаг 3: Параллельные запросы к Википедии и поиску
+      // Шаг 3: Параллельные запросы к Википедии, поиску и документам
       const promises = [
         // Запрос к Википедии
         axios
@@ -227,7 +280,7 @@ export default {
             return { type: 'wikipedia', data: {} };
           }),
 
-        // Запрос к поиску
+        // Запрос к веб-поиску
         axios
           .get('/api/search', {
             params: { q: queryToSearch, start },
@@ -246,9 +299,29 @@ export default {
             console.warn('Search fetch failed:', error.message);
             return { type: 'search', data: { results: [], totalResults: 0 } };
           }),
+
+        // Запрос к поиску документов
+        axios
+          .get('/api/document-search', {
+            params: { q: queryToSearch, start: docStart },
+            headers: {
+              'x-user': this.authStore.user ? JSON.stringify(this.authStore.user) : '{}',
+            },
+          })
+          .then((response) => ({
+            type: 'document-search',
+            data: {
+              results: response.data.results || [],
+              totalResults: response.data.totalResults || 0,
+            },
+          }))
+          .catch((error) => {
+            console.warn('Document search fetch failed:', error.message);
+            return { type: 'document-search', data: { results: [], totalResults: 0 } };
+          }),
       ];
 
-      // Выполняем запросы к Википедии и поиску
+      // Выполняем запросы
       try {
         const results = await Promise.allSettled(promises);
         results.forEach((result) => {
@@ -261,16 +334,23 @@ export default {
               this.results = data.results;
               this.totalResults = data.totalResults;
               this.webLoading = false;
+            } else if (type === 'document-search') {
+              this.documents = data.results;
+              this.docTotalResults = data.totalResults;
+              this.docLoading = false;
             }
           }
         });
       } catch (error) {
-        console.error('Error during wiki/search:', error);
+        console.error('Error during searches:', error);
         this.wikiLoading = false;
         this.webLoading = false;
+        this.docLoading = false;
         this.wikipediaResult = {};
         this.results = [];
         this.totalResults = 0;
+        this.documents = [];
+        this.docTotalResults = 0;
       }
 
       // Шаг 4: Сохраняем запрос в историю, если пользователь авторизован
@@ -290,26 +370,30 @@ export default {
         }
       }
 
+      // Шаг 5: Обновляем URL
       this.$router.push({
         path: '/search',
-        query: { q: this.searchQuery, page: this.currentPage },
+        query: {
+          q: this.searchQuery,
+          page: this.currentPage,
+          docPage: this.docCurrentPage,
+          type: this.searchType,
+        },
       });
     },
-    /* eslint-disable */
     async fetchAIResult(query) {
-      // try {
-      // const aiResponse = await axios.get('/api/ai', {
-      // params: { q: query },
-      // });
-      // this.aiResult = aiResponse.data.text ? { text: aiResponse.data.text } : {};
-      // } catch (error) {
-      // console.warn('AI fetch failed:', error.message);
-      // this.aiResult = {};
-      // } finally {
-      //   this.aiLoading = false;
-      // }
+      try {
+        const aiResponse = await axios.get('/api/ai', {
+          params: { q: query },
+        });
+        this.aiResult = aiResponse.data.text ? { text: aiResponse.data.text } : {};
+      } catch (error) {
+        console.warn('AI fetch failed:', error.message);
+        this.aiResult = {};
+      } finally {
+        this.aiLoading = false;
+      }
     },
-    /* eslint-enable */
     async fetchSuggestions() {
       if (!this.searchQuery.trim() || this.searchQuery.length < 2) {
         this.suggestions = [];
@@ -366,7 +450,9 @@ export default {
     selectSuggestion(suggestion) {
       this.searchQuery = suggestion.text;
       this.clearSuggestions();
-      this.performSearch(1);
+      this.currentPage = 1;
+      this.docCurrentPage = 1;
+      this.performSearch(1, 1);
     },
     async deleteSuggestion(suggestion) {
       if (!this.authStore.isAuthenticated) return;
@@ -425,13 +511,37 @@ export default {
     },
     previousPage() {
       if (this.currentPage > 1) {
-        this.performSearch(this.currentPage - 1);
+        this.performSearch(this.currentPage - 1, this.docCurrentPage);
       }
     },
     nextPage() {
       if (this.hasMoreResults) {
-        this.performSearch(this.currentPage + 1);
+        this.performSearch(this.currentPage + 1, this.docCurrentPage);
       }
+    },
+    previousDocPage() {
+      if (this.docCurrentPage > 1) {
+        this.performSearch(this.currentPage, this.docCurrentPage - 1);
+      }
+    },
+    nextDocPage() {
+      if (this.hasMoreDocResults) {
+        this.performSearch(this.currentPage, this.docCurrentPage + 1);
+      }
+    },
+    handleSearchTypeChange() {
+      // Сбрасываем пагинацию при смене типа поиска
+      this.currentPage = 1;
+      this.docCurrentPage = 1;
+      this.$router.push({
+        path: '/search',
+        query: {
+          q: this.searchQuery,
+          page: this.currentPage,
+          docPage: this.docCurrentPage,
+          type: this.searchType,
+        },
+      });
     },
     goToLogin() {
       this.$router.push('/login');
@@ -479,7 +589,7 @@ export default {
         const transcript = event.results[0][0].transcript;
         this.searchQuery = transcript;
         if (event.results[0].isFinal) {
-          this.performSearch(1);
+          this.performSearch(1, 1);
           recognition.stop();
         }
       };
@@ -764,6 +874,40 @@ button:hover {
   padding: 0 20px;
 }
 
+.search-type-selector {
+  margin-bottom: 20px;
+}
+
+.search-type-selector select {
+  width: 200px;
+  height: 40px;
+  border-radius: 8px;
+  border: var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-color);
+  font-size: 16px;
+  padding: 0 10px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%23ffffff" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+[data-theme='light'] .search-type-selector select {
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%23333333" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+}
+
+.search-type-selector select:focus {
+  border: var(--input-border-focus);
+}
+
+.search-type-selector select option {
+  background: var(--secondary-bg);
+  color: var(--text-color);
+}
+
 .loading {
   color: var(--text-color);
   font-size: 18px;
@@ -922,6 +1066,62 @@ button:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.documents-result {
+  background: var(--secondary-bg);
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.documents-result h3 {
+  font-size: 20px;
+  color: var(--text-color);
+  margin-bottom: 10px;
+}
+
+.document-item {
+  margin-bottom: 15px;
+}
+
+.document-title {
+  font-size: 18px;
+  color: #1e90ff;
+  text-decoration: none;
+}
+
+.document-title:hover {
+  text-decoration: underline;
+}
+
+.document-url {
+  font-size: 14px;
+  color: #00cc00;
+  margin: 5px 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.document-snippet {
+  font-size: 14px;
+  color: var(--text-color);
+  margin: 5px 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.document-type {
+  font-size: 12px;
+  color: var(--text-color);
+  margin: 5px 0;
+  opacity: 0.7;
 }
 
 .pagination {

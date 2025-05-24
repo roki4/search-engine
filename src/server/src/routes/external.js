@@ -1,14 +1,18 @@
 /**
-      * @fileoverview Routes for Wikipedia and AI API integration via OpenRouter.
-      * @module routes/external
-      */
+ * @fileoverview Routes for Wikipedia, AI, and Image Search API integration.
+ * @module routes/external
+ */
 
 const express = require('express');
 const axios = require('axios');
 const validate = require('../middleware/validate');
 const Joi = require('joi');
+const multer = require('multer');
 
 const router = express.Router();
+
+// Настройка multer для обработки файлов
+const upload = multer({ storage: multer.memoryStorage() });
 
 const wikipediaSchema = Joi.object({
   q: Joi.string().trim().min(1).required(),
@@ -33,7 +37,7 @@ router.get('/wikipedia', validate(wikipediaSchema), async (req, res) => {
     } : {};
     res.status(200).json(summary);
   } catch (error) {
-    console.error('Wikipedia API error:', error);
+    console.error('Wikipedia API error:', error.message);
     res.status(200).json({});
   }
 });
@@ -53,16 +57,15 @@ router.get('/ai', validate(aiSchema), async (req, res) => {
       },
       {
         headers: {
-          Authorization: 'Bearer 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',
+          Authorization: 'Bearer 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',
           'Content-Type': 'application/json',
           'HTTP-Referer': 'http://localhost:3000',
           'X-Title': 'Quirk Search',
         },
       }
     );
-    console.log('response:\n',response)
     const text = response.data.choices[0]?.message?.content || '';
-    res.status(200).json({ text: text || '' });
+    res.status(200).json({ text: text.trim() });
   } catch (error) {
     console.error('OpenRouter API error:', error.message);
     res.status(200).json({ text: '' });
