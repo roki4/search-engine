@@ -50,7 +50,7 @@ router.post('/change-password', isAuthenticated, /*validate(changePasswordSchema
   } catch (error) {
     console.error('Error changing password:', error);
     if (error.message === 'INVALID_PASSWORD') {
-      return res.status(400).json({ message: 'Invalid current password' });
+      return res.status(400).json({ message: 'Неверный пароль' });
     }
     res.status(500).json({ message: 'Server error' });
   }
