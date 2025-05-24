@@ -14,6 +14,7 @@
 
 <script>
 import { useAuthStore } from '@/stores/auth';
+import hotkeys from 'hotkeys-js';
 
 export default {
   name: 'LoginPage',
@@ -24,6 +25,16 @@ export default {
         password: '',
       },
     };
+  },
+  mounted() {
+    hotkeys.filter = () => true;
+    hotkeys('enter', (event) => {
+      event.preventDefault();
+      this.loginUser();
+    });
+  },
+  beforeUnmount() {
+    hotkeys.unbind('enter');
   },
   methods: {
     goToMain() {

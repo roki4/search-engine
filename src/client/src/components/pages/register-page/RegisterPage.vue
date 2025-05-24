@@ -16,6 +16,7 @@
 
 <script>
 import axios from 'axios';
+import hotkeys from 'hotkeys-js';
 
 export default {
   name: 'RegisterPage',
@@ -28,6 +29,16 @@ export default {
         password: '',
       },
     };
+  },
+  mounted() {
+    hotkeys.filter = () => true;
+    hotkeys('enter', (event) => {
+      event.preventDefault();
+      this.registerUser();
+    });
+  },
+  beforeUnmount() {
+    hotkeys.unbind('enter');
   },
   methods: {
     goToMain() {
