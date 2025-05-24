@@ -70,9 +70,8 @@
       </div>
     </div>
     <div class="results-container">
-      <div v-if="loading" class="loading">Загрузка...</div>
       <div
-        v-else-if="results.length === 0 && !wikipediaResult.title && !aiResult.text"
+        v-if="results.length === 0 && !wikipediaResult.title && !aiResult.text && !searchPerformed"
         class="no-results"
       >
         Ничего не найдено для "{{ searchQuery }}"
@@ -83,21 +82,23 @@
           <span class="spinner"></span>
           Нейросеть думает...
         </div>
-        <p v-else-if="aiResult.text" class="ai-response">{{ aiResult.text }}</p>
+        <div v-else-if="aiResult.text" class="ai-response" v-html="formattedAiResponse"></div>
         <p v-else class="ai-no-response">Ответ от нейросети отсутствует</p>
       </div>
-      <div v-if="wikipediaResult.title" class="wikipedia-result">
+      <div v-if="wikiLoading" class="loading">Загрузка Википедии...</div>
+      <div v-else-if="wikipediaResult.title" class="wikipedia-result">
         <h3>Краткая информация из Википедии</h3>
         <a :href="wikipediaResult.url" target="_blank" class="wiki-title">{{
           wikipediaResult.title
         }}</a>
         <p class="wiki-extract">{{ wikipediaResult.extract }}</p>
       </div>
-      <div v-if="results.length" class="results-list">
+      <div v-if="webLoading" class="loading">Загрузка результатов...</div>
+      <div v-else-if="results.length" class="results-list">
         <div v-for="(result, index) in results" :key="index" class="result-item">
           <a :href="result.url" target="_blank" class="result-title">{{ result.title }}</a>
           <p class="result-url">{{ result.url }}</p>
-          <p class="продолжить отсюда result-snippet">{{ result.snippet }}</p>
+          <p class="result-snippet">{{ result.snippet }}</p>
         </div>
       </div>
       <div v-if="results.length > 0" class="pagination">
@@ -119,6 +120,7 @@ import axios from 'axios';
 import hotkeys from 'hotkeys-js';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import debounce from 'lodash/debounce';
+import { marked } from 'marked';
 
 export default {
   name: 'SearchResults',
@@ -132,8 +134,9 @@ export default {
     return {
       searchQuery: '',
       results: [],
-      loading: false,
-      aiLoading: false, // Новое состояние для загрузки нейросети
+      webLoading: false,
+      wikiLoading: false,
+      aiLoading: false,
       currentPage: 1,
       totalResults: 0,
       resultsPerPage: 10,
@@ -144,11 +147,15 @@ export default {
       wikipediaResult: {},
       aiResult: {},
       errorMessage: '',
+      searchPerformed: false,
     };
   },
   computed: {
     hasMoreResults() {
       return this.currentPage * this.resultsPerPage < this.totalResults;
+    },
+    formattedAiResponse() {
+      return this.aiResult.text ? marked.parse(this.aiResult.text) : '';
     },
   },
   created() {
@@ -180,91 +187,129 @@ export default {
   methods: {
     async performSearch(page = 1) {
       if (!this.searchQuery.trim()) return;
-      this.loading = true;
-      this.aiLoading = true; // Включаем загрузку для нейросети
+      this.webLoading = true;
+      this.wikiLoading = true;
+      this.aiLoading = true;
       this.errorMessage = '';
       this.currentPage = Number.isInteger(page) && page > 0 ? page : 1;
       const start = (this.currentPage - 1) * this.resultsPerPage + 1;
+      this.searchPerformed = true;
 
+      // Шаг 1: Проверка орфографии
+      let queryToSearch = this.searchQuery;
       try {
-        let queryToSearch = this.searchQuery;
-        try {
-          const spellcheckResponse = await axios.get('/api/spellcheck', {
-            params: { q: this.searchQuery },
-          });
-          if (
-            spellcheckResponse.data.corrected &&
-            spellcheckResponse.data.corrected !== this.searchQuery
-          ) {
-            queryToSearch = spellcheckResponse.data.corrected;
-          }
-        } catch (error) {
-          console.warn('Spellcheck failed:', error.message);
-        }
-
-        try {
-          const aiResponse = await axios.get('/api/ai', {
-            params: { q: queryToSearch },
-          });
-          this.aiResult = aiResponse.data.text ? { text: aiResponse.data.text } : {};
-        } catch (error) {
-          console.warn('AI fetch failed:', error.message);
-          this.aiResult = {};
-        } finally {
-          this.aiLoading = false; // Выключаем загрузку для нейросети
-        }
-
-        try {
-          const wikiResponse = await axios.get('/api/wikipedia', {
-            params: { q: queryToSearch },
-          });
-          this.wikipediaResult = wikiResponse.data || {};
-        } catch (error) {
-          console.warn('Wikipedia fetch failed:', error.message);
-          this.wikipediaResult = {};
-        }
-
-        const response = await axios.get('/api/search', {
-          params: { q: queryToSearch, start },
-          headers: {
-            'x-user': this.authStore.user ? JSON.stringify(this.authStore.user) : '{}',
-          },
+        const spellcheckResponse = await axios.get('/api/spellcheck', {
+          params: { q: this.searchQuery },
         });
-        this.results = response.data.results || [];
-        this.totalResults = response.data.totalResults || 0;
-
-        if (this.authStore.isAuthenticated) {
-          try {
-            await axios.post(
-              '/api/save-search-query',
-              { query: queryToSearch },
-              {
-                headers: {
-                  'x-user': JSON.stringify(this.authStore.user),
-                },
-              }
-            );
-          } catch (error) {
-            console.warn('Failed to save search query:', error.message);
-          }
+        if (
+          spellcheckResponse.data.corrected &&
+          spellcheckResponse.data.corrected !== this.searchQuery
+        ) {
+          queryToSearch = spellcheckResponse.data.corrected;
         }
+      } catch (error) {
+        console.warn('Spellcheck failed:', error.message);
+      }
 
-        this.$router.push({
-          path: '/search',
-          query: { q: this.searchQuery, page: this.currentPage },
+      // Шаг 2: Запуск запроса к нейросети (независимо)
+      this.fetchAIResult(queryToSearch);
+
+      // Шаг 3: Параллельные запросы к Википедии и поиску
+      const promises = [
+        // Запрос к Википедии
+        axios
+          .get('/api/wikipedia', {
+            params: { q: queryToSearch },
+          })
+          .then((response) => ({ type: 'wikipedia', data: response.data || {} }))
+          .catch((error) => {
+            console.warn('Wikipedia fetch failed:', error.message);
+            return { type: 'wikipedia', data: {} };
+          }),
+
+        // Запрос к поиску
+        axios
+          .get('/api/search', {
+            params: { q: queryToSearch, start },
+            headers: {
+              'x-user': this.authStore.user ? JSON.stringify(this.authStore.user) : '{}',
+            },
+          })
+          .then((response) => ({
+            type: 'search',
+            data: {
+              results: response.data.results || [],
+              totalResults: response.data.totalResults || 0,
+            },
+          }))
+          .catch((error) => {
+            console.warn('Search fetch failed:', error.message);
+            return { type: 'search', data: { results: [], totalResults: 0 } };
+          }),
+      ];
+
+      // Выполняем запросы к Википедии и поиску
+      try {
+        const results = await Promise.allSettled(promises);
+        results.forEach((result) => {
+          if (result.status === 'fulfilled') {
+            const { type, data } = result.value;
+            if (type === 'wikipedia') {
+              this.wikipediaResult = data;
+              this.wikiLoading = false;
+            } else if (type === 'search') {
+              this.results = data.results;
+              this.totalResults = data.totalResults;
+              this.webLoading = false;
+            }
+          }
         });
       } catch (error) {
-        console.error('Error during search:', error);
-        this.errorMessage = error.response?.data?.message || 'Ошибка при выполнении поиска';
+        console.error('Error during wiki/search:', error);
+        this.wikiLoading = false;
+        this.webLoading = false;
+        this.wikipediaResult = {};
         this.results = [];
         this.totalResults = 0;
-        this.wikipediaResult = {};
-        this.aiResult = {};
-        this.aiLoading = false; // Выключаем загрузку в случае общей ошибки
-      } finally {
-        this.loading = false;
       }
+
+      // Шаг 4: Сохраняем запрос в историю, если пользователь авторизован
+      if (this.authStore.isAuthenticated) {
+        try {
+          await axios.post(
+            '/api/save-search-query',
+            { query: queryToSearch },
+            {
+              headers: {
+                'x-user': JSON.stringify(this.authStore.user),
+              },
+            }
+          );
+        } catch (error) {
+          console.warn('Failed to save search query:', error.message);
+        }
+      }
+
+      this.$router.push({
+        path: '/search',
+        query: { q: this.searchQuery, page: this.currentPage },
+      });
     },
+    /* eslint-disable */
+    async fetchAIResult(query) {
+      // try {
+      // const aiResponse = await axios.get('/api/ai', {
+      // params: { q: query },
+      // });
+      // this.aiResult = aiResponse.data.text ? { text: aiResponse.data.text } : {};
+      // } catch (error) {
+      // console.warn('AI fetch failed:', error.message);
+      // this.aiResult = {};
+      // } finally {
+      //   this.aiLoading = false;
+      // }
+    },
+    /* eslint-enable */
     async fetchSuggestions() {
       if (!this.searchQuery.trim() || this.searchQuery.length < 2) {
         this.suggestions = [];
@@ -774,11 +819,18 @@ button:hover {
   font-size: 14px;
   color: var(--text-color);
   margin-top: 10px;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.ai-response h3 {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 10px 0 5px;
+}
+
+.ai-response strong {
+  font-weight: bold;
 }
 
 .ai-no-response {

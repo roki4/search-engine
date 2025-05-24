@@ -53,13 +53,14 @@ router.get('/ai', validate(aiSchema), async (req, res) => {
       },
       {
         headers: {
-          Authorization: 'Bearer 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',
+          Authorization: 'Bearer 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',
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'http://localhost:3000', // Ваш сайт
+          'HTTP-Referer': 'http://localhost:3000',
           'X-Title': 'Quirk Search',
         },
       }
     );
+    console.log('response:\n',response)
     const text = response.data.choices[0]?.message?.content || '';
     res.status(200).json({ text: text || '' });
   } catch (error) {
