@@ -1,16 +1,52 @@
 <template>
   <div class="register-page">
     <div class="register-logo">Регистрация</div>
-    <form class="form">
-      <input type="text" v-model="user.name" placeholder="Имя" class="name" />
-      <input type="text" v-model="user.surname" placeholder="Фамилия" class="surname" />
-      <input type="email" v-model="user.email" placeholder="Email" class="email" />
-      <input type="password" v-model="user.password" placeholder="Пароль" class="password" />
+    <form class="form" @submit.prevent="registerUser">
+      <div class="input-group">
+        <input
+          v-model="user.name"
+          type="text"
+          placeholder="Имя"
+          :class="{ 'input-error': errors.name }"
+        />
+        <div class="error" v-if="errors.name">{{ errors.name }}</div>
+      </div>
+
+      <div class="input-group">
+        <input
+          v-model="user.surname"
+          type="text"
+          placeholder="Фамилия"
+          :class="{ 'input-error': errors.surname }"
+        />
+        <div class="error" v-if="errors.surname">{{ errors.surname }}</div>
+      </div>
+
+      <div class="input-group">
+        <input
+          v-model="user.email"
+          type="email"
+          placeholder="Email"
+          :class="{ 'input-error': errors.email }"
+        />
+        <div class="error" v-if="errors.email">{{ errors.email }}</div>
+      </div>
+
+      <div class="input-group">
+        <input
+          v-model="user.password"
+          type="password"
+          placeholder="Пароль"
+          :class="{ 'input-error': errors.password }"
+        />
+        <div class="error" v-if="errors.password">{{ errors.password }}</div>
+      </div>
+
+      <div class="buttons">
+        <button type="submit" class="signup">Регистрация</button>
+        <button type="button" @click="goToMain" class="back">Назад</button>
+      </div>
     </form>
-    <div class="buttons">
-      <button type="submit" @click="registerUser" class="signup">Регистрация</button>
-      <button @click="goToMain" type="submit" class="back">Назад</button>
-    </div>
   </div>
 </template>
 
@@ -28,36 +64,68 @@ export default {
         email: '',
         password: '',
       },
+      errors: {
+        name: '',
+        surname: '',
+        email: '',
+        password: '',
+      },
     };
-  },
-  mounted() {
-    hotkeys.filter = () => true;
-    hotkeys('enter', (event) => {
-      event.preventDefault();
-      this.registerUser();
-    });
-  },
-  beforeUnmount() {
-    hotkeys.unbind('enter');
   },
   methods: {
     goToMain() {
       this.$router.push('/');
     },
     async registerUser() {
+      this.errors = { name: '', surname: '', email: '', password: '' };
+      const { name, surname, email, password } = this.user;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      let valid = true;
+
+      if (!name) {
+        this.errors.name = 'Имя обязательно';
+        valid = false;
+      }
+      if (!surname) {
+        this.errors.surname = 'Фамилия обязательна';
+        valid = false;
+      }
+      if (!email) {
+        this.errors.email = 'Email обязателен';
+        valid = false;
+      } else if (!emailRegex.test(email)) {
+        this.errors.email = 'Неверный формат email';
+        valid = false;
+      }
+      if (!password) {
+        this.errors.password = 'Пароль обязателен';
+        valid = false;
+      } else if (password.length < 6) {
+        this.errors.password = 'Пароль должен быть не менее 6 символов';
+        valid = false;
+      }
+
+      if (!valid) return;
+
       try {
-        const response = await axios.post('/api/register', {
-          name: this.user.name,
-          surname: this.user.surname,
-          email: this.user.email,
-          password: this.user.password,
-        });
-        console.log('response: \n', response);
+        const response = await axios.post('/api/register', { name, surname, email, password });
+        console.log('response:', response);
         this.$router.push('/login');
       } catch (error) {
+        this.errors.email = 'Такой email уже зарегистрирован';
         console.error('Ошибка при регистрации:', error);
       }
     },
+  },
+  mounted() {
+    hotkeys.filter = () => true;
+    hotkeys('enter', (e) => {
+      e.preventDefault();
+      this.registerUser();
+    });
+  },
+  beforeUnmount() {
+    hotkeys.unbind('enter');
   },
 };
 </script>
@@ -70,30 +138,28 @@ export default {
   justify-content: center;
   height: 65vh;
   background: var(--background-color);
-  transition: background 0.3s ease;
 }
-
 .register-logo {
-  font-size: 70px;
+  font-size: 60px;
   color: var(--text-color);
-  margin-bottom: 30px;
-  transition: color 0.3s ease;
+  margin-bottom: 20px;
 }
-
 .form {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  width: 100%;
 }
-
-.name {
-  margin-top: 30px;
+.input-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 350px;
+  margin-bottom: 15px;
 }
-
 input {
   height: 40px;
-  width: 350px;
+  width: 100%;
   border-radius: 15px;
   outline: none;
   background: var(--input-bg);
@@ -101,22 +167,21 @@ input {
   color: var(--text-color);
   padding: 0 15px;
   font-size: 15px;
-  transition: border 0.3s ease, background 0.3s ease, color 0.3s ease;
 }
-
-input:focus {
-  border: var(--input-border-focus);
-  background: var(--input-bg);
-  color: var(--text-color);
+.input-error {
+  border: 2px solid #ff4d4f !important;
 }
-
+.error {
+  color: #ff4d4f;
+  font-size: 14px;
+  margin-top: 4px;
+}
 .buttons {
   display: flex;
-  align-items: center;
+  justify-content: center;
   gap: 15px;
-  margin-top: 30px;
+  margin-top: 5px;
 }
-
 button {
   font-size: 18px;
   width: 150px;
@@ -126,24 +191,19 @@ button {
   border: none;
   color: var(--button-text);
   opacity: 0.8;
-  transition: all 0.4s ease;
   cursor: pointer;
   font-weight: bold;
 }
-
 .signup:hover {
   font-size: 20px;
   background: #28a745;
   color: #ffffff;
-  border-radius: 12px;
   opacity: 1;
 }
-
 .back:hover {
   font-size: 20px;
   background: #cccccc;
   color: #000000;
-  border-radius: 12px;
   opacity: 1;
 }
 </style>

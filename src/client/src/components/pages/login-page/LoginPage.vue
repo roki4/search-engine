@@ -1,14 +1,32 @@
 <template>
   <div class="login-page">
     <div class="login-logo">Вход</div>
-    <form class="form">
-      <input v-model="user.email" type="email" placeholder="Email" class="email" />
-      <input v-model="user.password" type="password" placeholder="Пароль" class="password" />
+    <form class="form" @submit.prevent="loginUser">
+      <div class="input-group">
+        <input
+          v-model="user.email"
+          type="email"
+          placeholder="Email"
+          :class="{ 'input-error': errors.email }"
+        />
+        <div class="error" v-if="errors.email">{{ errors.email }}</div>
+      </div>
+
+      <div class="input-group">
+        <input
+          v-model="user.password"
+          type="password"
+          placeholder="Пароль"
+          :class="{ 'input-error': errors.password }"
+        />
+        <div class="error" v-if="errors.password">{{ errors.password }}</div>
+      </div>
+
+      <div class="buttons">
+        <button type="submit" class="login">Войти</button>
+        <button type="button" @click="goToMain" class="back">Назад</button>
+      </div>
     </form>
-    <div class="buttons">
-      <button @click="loginUser" type="submit" class="login">Войти</button>
-      <button @click="goToMain" type="submit" class="back">Назад</button>
-    </div>
   </div>
 </template>
 
@@ -24,34 +42,57 @@ export default {
         email: '',
         password: '',
       },
+      errors: {
+        email: '',
+        password: '',
+      },
     };
-  },
-  mounted() {
-    hotkeys.filter = () => true;
-    hotkeys('enter', (event) => {
-      event.preventDefault();
-      this.loginUser();
-    });
-  },
-  beforeUnmount() {
-    hotkeys.unbind('enter');
   },
   methods: {
     goToMain() {
       this.$router.push('/');
     },
     async loginUser() {
-      const authStore = useAuthStore();
+      this.errors = { email: '', password: '' };
+
+      const { email, password } = this.user;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      let valid = true;
+
+      if (!email) {
+        this.errors.email = 'Email обязателен';
+        valid = false;
+      } else if (!emailRegex.test(email)) {
+        this.errors.email = 'Неверный формат email';
+        valid = false;
+      }
+
+      if (!password) {
+        this.errors.password = 'Пароль обязателен';
+        valid = false;
+      }
+
+      if (!valid) return;
+
       try {
-        await authStore.login({
-          email: this.user.email,
-          password: this.user.password,
-        });
+        const authStore = useAuthStore();
+        await authStore.login({ email, password });
         this.$router.push('/');
       } catch (error) {
-        console.error('Ошибка при входе в систему:', error);
+        this.errors.password = 'Неверный email или пароль';
+        console.error(error);
       }
     },
+  },
+  mounted() {
+    hotkeys.filter = () => true;
+    hotkeys('enter', (e) => {
+      e.preventDefault();
+      this.loginUser();
+    });
+  },
+  beforeUnmount() {
+    hotkeys.unbind('enter');
   },
 };
 </script>
@@ -64,30 +105,28 @@ export default {
   justify-content: center;
   height: 65vh;
   background: var(--background-color);
-  transition: background 0.3s ease;
 }
-
 .login-logo {
-  font-size: 70px;
+  font-size: 50px;
   color: var(--text-color);
   margin-bottom: 30px;
-  transition: color 0.3s ease;
 }
-
 .form {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  width: 100%;
 }
-
-.email {
-  margin-top: 30px;
+.input-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 350px;
+  margin-bottom: 15px;
 }
-
 input {
   height: 40px;
-  width: 350px;
+  width: 100%;
   border-radius: 15px;
   outline: none;
   background: var(--input-bg);
@@ -95,22 +134,21 @@ input {
   color: var(--text-color);
   padding: 0 15px;
   font-size: 15px;
-  transition: border 0.3s ease, background 0.3s ease, color 0.3s ease;
 }
-
-input:focus {
-  border: var(--input-border-focus);
-  background: var(--input-bg);
-  color: var(--text-color);
+.input-error {
+  border: 2px solid #ff4d4f !important;
 }
-
+.error {
+  color: #ff4d4f;
+  font-size: 14px;
+  margin-top: 4px;
+}
 .buttons {
   display: flex;
-  align-items: center;
+  justify-content: center;
   gap: 15px;
-  margin-top: 30px;
+  margin-top: 5px;
 }
-
 button {
   font-size: 18px;
   width: 150px;
@@ -120,24 +158,19 @@ button {
   border: none;
   color: var(--button-text);
   opacity: 0.8;
-  transition: all 0.4s ease;
   cursor: pointer;
   font-weight: bold;
 }
-
 .login:hover {
   font-size: 20px;
   background: #007bff;
   color: #ffffff;
-  border-radius: 12px;
   opacity: 1;
 }
-
 .back:hover {
   font-size: 20px;
   background: #cccccc;
   color: #000000;
-  border-radius: 12px;
   opacity: 1;
 }
 </style>
