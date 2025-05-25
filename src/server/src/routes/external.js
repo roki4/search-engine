@@ -57,7 +57,7 @@ router.get('/ai', validate(aiSchema), async (req, res) => {
       },
       {
         headers: {
-          Authorization: 'Bearer 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',
+          Authorization: 'Bearer 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',
           'Content-Type': 'application/json',
           'HTTP-Referer': 'http://localhost:3000',
           'X-Title': 'Quirk Search',
